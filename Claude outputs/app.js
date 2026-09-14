@@ -207,6 +207,7 @@ app.use('/inventory', require('./routes/inventory'));
 app.use('/assessments', require('./routes/assessments'));
 app.use('/work-updates', require('./routes/work-updates'));
 app.use('/fabrication', require('./routes/fabrication'));
+app.use('/services', require('./routes/services'));
 app.use('/funds', require('./routes/funds'));
 app.use('/subscribers', require('./routes/subscribers'));
 app.use('/customers', require('./routes/customers'));

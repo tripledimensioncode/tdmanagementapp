@@ -517,59 +517,15 @@ router.get('/:id/receipts/:paymentId.pdf', isLoggedIn, async (req, res) => {
   });
 });
 
-// Admin only: list & manage services
-// IMPORTANT: this must stay registered BEFORE the generic GET '/:id' route
-// below. Express matches routes in registration order, and '/:id' matches
-// any single path segment — including the literal word "services". With
-// '/:id' registered first, GET /fabrication/services was being swallowed by
-// it (id = "services" -> parseInt() -> NaN -> Prisma rejects the query
-// client-side with no response ever sent), which silently hung every
-// request to this page until Vercel's function timeout killed it. Moving
-// this above '/:id' is the actual fix; the isFinite guard added to '/:id'
-// below is a second line of defense so a bad/non-numeric id can never
-// cause the same silent hang again, from this route or a future one.
-//
-// (services are already fetched by the router-level middleware above and
-// cached in cachedServices — no need to query again here)
-router.get('/services', isLoggedIn, isAdmin, async (req, res) => {
-  res.render('fabrication/services', { services: cachedServices });
-});
-
-// Admin only: add new service
-router.post('/services/new', isLoggedIn, isAdmin, async (req, res) => {
-  const prisma = req.app.locals.prisma;
-  const { value, label } = req.body;
-
-  const normalizedValue = (value || '').toString().trim().toUpperCase().replace(/[^A-Z0-9_]/g, '_');
-  const normalizedLabel = (label || '').toString().trim();
-
-  if (!normalizedValue || !normalizedLabel) {
-    req.session.flash = { error: 'Both service code and label are required.' };
-    return res.redirect('/fabrication/services');
-  }
-
-  try {
-    const existing = await prisma.service.findUnique({ where: { value: normalizedValue } });
-    if (existing) {
-      req.session.flash = { error: `Service code ${normalizedValue} already exists.` };
-      return res.redirect('/fabrication/services');
-    }
-
-    await prisma.service.create({
-      data: {
-        value: normalizedValue,
-        label: normalizedLabel
-      }
-    });
-
-    req.session.flash = { success: `Service "${normalizedLabel}" added successfully.` };
-    res.redirect('/fabrication/services');
-  } catch (err) {
-    console.error(err);
-    req.session.flash = { error: 'Failed to add service.' };
-    res.redirect('/fabrication/services');
-  }
-});
+// NOTE: service management (add/edit/delete) now lives in its own
+// standalone router at routes/services.js, mounted at /services in app.js —
+// not nested here under /fabrication. It used to live at
+// GET/POST /fabrication/services, but that path was being silently
+// swallowed by the GET /:id route below (a wildcard that matches any single
+// path segment, including the literal word "services"), which caused every
+// request to it to hang until the platform's function timeout killed it.
+// Moving it to its own top-level path with no wildcard siblings removes
+// that whole class of bug rather than just reordering around it.
 
 // Show single fabrication
 router.get('/:id', isLoggedIn, async (req, res) => {
