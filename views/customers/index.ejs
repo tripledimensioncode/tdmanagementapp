@@ -1,0 +1,155 @@
+<div class="space-y-6">
+  <!-- Header & Add Button -->
+  <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <div>
+      <h1 class="text-2xl font-bold text-slate-900">Customers</h1>
+      <p class="text-sm text-slate-500">Keep track of our customers, calls, and potential service jobs.</p>
+    </div>
+    <a href="/customers/new" class="inline-flex items-center justify-center rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 transition shadow-sm">
+      + Add Customer
+    </a>
+  </div>
+
+  <!-- Search & Filter Bar -->
+  <div class="bg-white p-4 shadow rounded-2xl border border-slate-200">
+    <form method="GET" action="/customers" class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+      <div class="flex-1 max-w-md relative">
+        <input 
+          type="text" 
+          name="search" 
+          value="<%= filters.search %>" 
+          placeholder="Search by name..." 
+          class="w-full pl-10 pr-4 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-4">
+        <label class="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+          <input 
+            type="checkbox" 
+            name="potential" 
+            value="1" 
+            <%= filters.potential === '1' ? 'checked' : '' %>
+            onchange="this.form.submit()"
+            class="rounded border-slate-300 text-blue-600 focus:ring-blue-500 h-4 w-4"
+          />
+          <span>Show Potential Customers Only</span>
+        </label>
+        
+        <button type="submit" class="bg-slate-800 text-white px-4 py-2 text-sm font-semibold rounded-xl hover:bg-black transition">
+          Search
+        </button>
+        <% if (filters.search || filters.potential) { %>
+          <a href="/customers" class="text-sm text-slate-500 hover:text-slate-800 underline">Clear</a>
+        <% } %>
+      </div>
+    </form>
+  </div>
+
+  <!-- Customers Grid -->
+  <% if (items && items.length > 0) { %>
+    <div class="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+      <% items.forEach(function(cust) { %>
+        <div class="relative bg-white rounded-2xl shadow p-5 border border-slate-200 hover:shadow-md transition flex flex-col justify-between overflow-hidden">
+          
+          <!-- Potential Customer Ribbon/Pill -->
+          <% if (cust.isPotential) { %>
+            <div class="absolute top-0 right-0 bg-amber-500 text-white text-xs px-3 py-1 rounded-bl-xl font-bold tracking-wide animate-pulse">
+              ★ Potential Job
+            </div>
+          <% } %>
+
+          <div class="space-y-4">
+            <div>
+              <h2 class="text-lg font-bold text-slate-900 pr-24 truncate"><%= cust.name %></h2>
+              <div class="flex flex-wrap gap-2 mt-1">
+                <% if (cust.location) { %>
+                  <span class="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full text-xs font-medium">📍 <%= cust.location %></span>
+                <% } %>
+                <% if (cust.phone) { %>
+                  <a href="tel:<%= cust.phone %>" class="bg-blue-50 text-blue-600 hover:bg-blue-100 px-2 py-0.5 rounded-full text-xs font-medium">📞 <%= cust.phone %></a>
+                <% } %>
+              </div>
+            </div>
+
+            <!-- Email, Comments, Last Job -->
+            <div class="space-y-2 text-sm text-slate-700">
+              <% if (cust.email) { %>
+                <div class="truncate"><strong class="text-xs text-slate-400 uppercase block tracking-wider">Email</strong><%= cust.email %></div>
+              <% } %>
+              
+              <% if (cust.lastJobDetails) { %>
+                <div><strong class="text-xs text-slate-400 uppercase block tracking-wider font-semibold">Last Job</strong><%= cust.lastJobDetails %></div>
+              <% } %>
+
+              <% if (cust.comment) { %>
+                <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-100 text-xs italic text-slate-600">
+                  <strong class="text-[10px] text-slate-400 uppercase not-italic block tracking-wider font-semibold mb-0.5">Notes/Comment</strong>
+                  &ldquo;<%= cust.comment %>&rdquo;
+                </div>
+              <% } %>
+            </div>
+
+            <!-- Attended by & Call Status -->
+            <div class="border-t pt-3 text-xs text-slate-500 space-y-1">
+              <div>
+                <strong>Last Call:</strong> 
+                <% if (cust.lastCalled) { %>
+                  <span class="text-slate-900 font-medium"><%= dayjs(cust.lastCalled).format('YYYY-MM-DD HH:mm') %></span> 
+                  (<%= dayjs(cust.lastCalled).fromNow ? dayjs(cust.lastCalled).fromNow() : 'recent' %>)
+                <% } else { %>
+                  <span class="text-red-500 font-bold">Never Called</span>
+                <% } %>
+              </div>
+              <% if (cust.attendedBy) { %>
+                <div><strong>Attended by:</strong> <span class="bg-slate-100 px-2 py-0.5 rounded text-slate-700 font-medium"><%= cust.attendedBy.name %></span></div>
+              <% } %>
+            </div>
+          </div>
+
+          <!-- Actions -->
+          <div class="border-t pt-4 mt-4 flex items-center justify-between gap-2">
+            <div class="flex items-center gap-2">
+              <form action="/customers/<%= cust.id %>/call" method="POST" class="m-0">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                <button type="submit" class="bg-emerald-600 text-white hover:bg-emerald-700 px-3 py-1.5 rounded-xl text-xs font-semibold shadow-sm transition">
+                  📞 Called
+                </button>
+              </form>
+
+              <form action="/customers/<%= cust.id %>/toggle-potential" method="POST" class="m-0">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                <button type="submit" class="<%= cust.isPotential ? 'bg-amber-100 text-amber-800 hover:bg-amber-200' : 'bg-slate-100 text-slate-700 hover:bg-slate-200' %> px-3 py-1.5 rounded-xl text-xs font-semibold transition">
+                  <%= cust.isPotential ? '★ Unflag' : '☆ Potential' %>
+                </button>
+              </form>
+            </div>
+
+            <div class="flex items-center gap-2">
+              <a href="/customers/<%= cust.id %>/edit" class="text-slate-500 hover:text-slate-900 text-xs font-semibold px-2 py-1 hover:bg-slate-100 rounded-lg transition">Edit</a>
+              <form action="/customers/<%= cust.id %>/delete" method="POST" class="m-0" onsubmit="return confirm('Are you sure you want to delete this customer?');">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                <button type="submit" class="text-red-600 hover:text-red-800 text-xs font-semibold px-2 py-1 hover:bg-red-50 rounded-lg transition">Delete</button>
+              </form>
+            </div>
+          </div>
+
+        </div>
+      <% }) %>
+    </div>
+  <% } else { %>
+    <div class="bg-white rounded-2xl shadow p-8 text-center border border-slate-200 max-w-md mx-auto">
+      <div class="text-4xl mb-3 text-slate-300">👥</div>
+      <h3 class="text-base font-semibold text-slate-800">No Customers Found</h3>
+      <p class="text-sm text-slate-500 mt-1">Start by adding your first customer to keep track of calls and jobs.</p>
+      <a href="/customers/new" class="mt-4 inline-block bg-blue-600 text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-blue-700 transition">
+        Add Customer
+      </a>
+    </div>
+  <% } %>
+</div>

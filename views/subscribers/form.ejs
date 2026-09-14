@@ -1,0 +1,131 @@
+<div class="max-w-3xl mx-auto bg-white p-6 shadow rounded">
+  <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <div>
+      <h2 class="text-xl font-semibold">New Subscriber</h2>
+      <p class="text-sm text-slate-600">Create a subscriber and assign a subscription plan.</p>
+    </div>
+    <a href="/subscribers" class="text-sm text-blue-600 hover:underline">Back to list</a>
+  </div>
+
+  <% if (!types || !types.length) { %>
+    <div class="mt-4 rounded border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+      No subscription plans yet. Ask an admin to create one first.
+    </div>
+  <% } %>
+
+  <form action="/subscribers/new?_csrf=<%= encodeURIComponent(csrfToken) %>" method="POST" enctype="multipart/form-data" class="mt-6 space-y-4">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+    <div>
+      <label class="block text-sm font-medium">Full Name</label>
+      <input type="text" name="name" class="w-full border rounded px-2 py-1" required />
+    </div>
+
+    <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+      <div>
+        <label class="block text-sm font-medium">Profession</label>
+        <input type="text" name="profession" class="w-full border rounded px-2 py-1" />
+      </div>
+      <div>
+        <label class="block text-sm font-medium">Phone (Primary)</label>
+        <input type="text" name="phonePrimary" class="w-full border rounded px-2 py-1" />
+      </div>
+      <div>
+        <label class="block text-sm font-medium">Phone (Secondary)</label>
+        <input type="text" name="phoneSecondary" class="w-full border rounded px-2 py-1" />
+      </div>
+      <div class="flex items-center gap-2">
+        <input type="checkbox" id="isStudent" name="isStudent" class="h-4 w-4" />
+        <label for="isStudent" class="text-sm font-medium">Student</label>
+      </div>
+    </div>
+
+    <div id="studentIdWrapper" class="hidden">
+      <label class="block text-sm font-medium">Student ID</label>
+      <input type="text" name="studentId" class="w-full border rounded px-2 py-1" />
+    </div>
+
+    <div>
+      <label class="block text-sm font-medium">Subscription Plan</label>
+      <select id="planSelect" name="subscriptionTypeId" class="w-full border rounded px-2 py-1" required <%= (!types || !types.length) ? 'disabled' : '' %>>
+        <option value="">-- select --</option>
+        <% if (types) { %>
+          <% types.forEach((type) => { %>
+            <option value="<%= type.id %>" data-duration="<%= type.durationDays %>"><%= type.name %> (₵<%= Number(type.price).toFixed(2) %>, <%= type.durationDays %> days)</option>
+          <% }) %>
+        <% } %>
+      </select>
+      <p class="text-xs text-slate-500 mt-1">Admins define the available plans and allowed services.</p>
+    </div>
+
+    <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+      <div>
+        <label class="block text-sm font-medium">Start Date</label>
+        <input id="startDateInput" type="date" name="startDate" value="<%= today %>" class="w-full border rounded px-2 py-1" required />
+      </div>
+      <div>
+        <label class="block text-sm font-medium">End Date</label>
+        <input id="endDateInput" type="date" name="endDate" class="w-full border rounded px-2 py-1" required />
+      </div>
+    </div>
+
+    <div>
+      <label class="block text-sm font-medium">ID Card Image</label>
+      <input type="file" name="idCard" accept="image/*" class="w-full border rounded px-2 py-1" />
+      <p class="text-xs text-slate-500 mt-1">Upload a student ID or any valid ID card.</p>
+    </div>
+
+    <div>
+      <label class="block text-sm font-medium">Other Notes</label>
+      <textarea name="notes" rows="3" class="w-full border rounded px-2 py-1"></textarea>
+    </div>
+
+    <div class="flex gap-3">
+      <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700" <%= (!types || !types.length) ? 'disabled' : '' %>>
+        Save Subscriber
+      </button>
+      <a href="/subscribers" class="border px-4 py-2 rounded hover:bg-gray-50">Cancel</a>
+    </div>
+  </form>
+</div>
+
+<script>
+  const studentToggle = document.getElementById('isStudent');
+  const studentWrapper = document.getElementById('studentIdWrapper');
+  const planSelect = document.getElementById('planSelect');
+  const startDateInput = document.getElementById('startDateInput');
+  const endDateInput = document.getElementById('endDateInput');
+  let endTouched = false;
+
+  function syncStudent() {
+    if (studentToggle.checked) {
+      studentWrapper.classList.remove('hidden');
+    } else {
+      studentWrapper.classList.add('hidden');
+    }
+  }
+
+  function updateEndDate() {
+    if (!planSelect || !startDateInput || !endDateInput) return;
+    if (endTouched) return;
+    const selected = planSelect.selectedOptions[0];
+    const duration = selected ? Number(selected.dataset.duration || 0) : 0;
+    if (!duration || !startDateInput.value) return;
+    const start = new Date(startDateInput.value);
+    if (Number.isNaN(start.getTime())) return;
+    start.setDate(start.getDate() + duration);
+    endDateInput.value = start.toISOString().split('T')[0];
+  }
+
+  if (endDateInput) {
+    endDateInput.addEventListener('change', () => {
+      endTouched = true;
+    });
+  }
+
+  studentToggle.addEventListener('change', syncStudent);
+  if (planSelect) planSelect.addEventListener('change', updateEndDate);
+  if (startDateInput) startDateInput.addEventListener('change', updateEndDate);
+  syncStudent();
+  updateEndDate();
+</script>

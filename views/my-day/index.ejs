@@ -1,0 +1,98 @@
+<div class="max-w-3xl mx-auto">
+  <div class="mb-6">
+    <h1 class="text-2xl font-bold">Daily Log</h1>
+    <p class="text-slate-500 text-sm mt-1"><%= today %></p>
+  </div>
+
+  <!-- Daily Log Summary -->
+  <div class="bg-white rounded-2xl shadow p-5 mb-6">
+    <h2 class="text-lg font-semibold mb-4">What are you working on today?</h2>
+    <form action="/my-day/update?_csrf=<%= encodeURIComponent(csrfToken) %>" method="POST" class="space-y-3">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <div>
+        <label class="block text-sm font-medium text-slate-700 mb-1">Today's Focus</label>
+        <textarea name="summary" rows="3" class="w-full border rounded-xl px-3 py-2 text-sm" placeholder="Describe what you're working on today..."><%= log.summary || '' %></textarea>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-slate-700 mb-1">Blockers / Challenges (optional)</label>
+        <textarea name="blockers" rows="2" class="w-full border rounded-xl px-3 py-2 text-sm" placeholder="Any blockers or challenges?"><%= log.blockers || '' %></textarea>
+      </div>
+      <button type="submit" class="bg-blue-600 text-white px-5 py-2 rounded-xl text-sm font-semibold hover:bg-blue-700 transition">Save Log</button>
+    </form>
+  </div>
+
+  <!-- Task Manager -->
+  <div class="bg-white rounded-2xl shadow p-5">
+    <h2 class="text-lg font-semibold mb-4">Tasks</h2>
+
+    <!-- Add task form -->
+    <form action="/my-day/tasks?_csrf=<%= encodeURIComponent(csrfToken) %>" method="POST" class="flex flex-col gap-2 mb-6 sm:flex-row sm:items-end">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <div class="flex-1">
+        <label class="block text-xs font-medium text-slate-600 mb-1">Task Title</label>
+        <input type="text" name="title" required placeholder="e.g. Print bracket for enclosure" class="w-full border rounded-xl px-3 py-2 text-sm">
+      </div>
+      <div class="w-36">
+        <label class="block text-xs font-medium text-slate-600 mb-1">Est. Minutes</label>
+        <input type="number" name="estimatedMin" min="1" placeholder="e.g. 45" class="w-full border rounded-xl px-3 py-2 text-sm">
+      </div>
+      <button type="submit" class="bg-emerald-600 text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-emerald-700 transition">+ Add Task</button>
+    </form>
+
+    <!-- Task list -->
+    <% if (log.tasks && log.tasks.length) { %>
+      <div class="space-y-3">
+        <% log.tasks.forEach(task => { %>
+          <div class="border rounded-xl p-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between
+            <%= task.status === 'DONE' ? 'bg-slate-50 opacity-70' : task.status === 'IN_PROGRESS' ? 'border-blue-300 bg-blue-50' : 'bg-white' %>">
+            <div class="flex-1">
+              <div class="font-medium text-sm <%= task.status === 'DONE' ? 'line-through text-slate-400' : '' %>">
+                <%= task.title %>
+              </div>
+              <div class="text-xs text-slate-500 mt-0.5 flex gap-3">
+                <% if (task.estimatedMin) { %>
+                  <span>Est: <%= task.estimatedMin %>m</span>
+                <% } %>
+                <% if (task.actualMin != null) { %>
+                  <span>Actual: <%= task.actualMin %>m</span>
+                <% } %>
+                <% if (task.estimatedMin && task.actualMin != null) { %>
+                  <% const ratio = (task.estimatedMin / task.actualMin).toFixed(2); %>
+                  <span class="font-medium <%= parseFloat(ratio) >= 1 ? 'text-emerald-600' : 'text-orange-500' %>">
+                    Efficiency: <%= ratio %>x
+                  </span>
+                <% } %>
+                <span class="capitalize inline-block px-2 py-0.5 rounded-full text-xs
+                  <%= task.status === 'DONE' ? 'bg-slate-200 text-slate-600' : task.status === 'IN_PROGRESS' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-500' %>">
+                  <%= task.status.toLowerCase().replace('_', ' ') %>
+                </span>
+              </div>
+            </div>
+            <div class="flex gap-2">
+              <% if (task.status === 'TODO') { %>
+                <form action="/my-day/tasks/<%= task.id %>/start?_csrf=<%= encodeURIComponent(csrfToken) %>" method="POST">
+                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                  <button type="submit" class="text-xs bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700">Start</button>
+                </form>
+              <% } %>
+              <% if (task.status === 'IN_PROGRESS') { %>
+                <form action="/my-day/tasks/<%= task.id %>/done?_csrf=<%= encodeURIComponent(csrfToken) %>" method="POST">
+                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                  <button type="submit" class="text-xs bg-emerald-600 text-white px-3 py-1.5 rounded-lg hover:bg-emerald-700">Done</button>
+                </form>
+              <% } %>
+              <% if (task.status !== 'IN_PROGRESS') { %>
+                <form action="/my-day/tasks/<%= task.id %>/delete?_csrf=<%= encodeURIComponent(csrfToken) %>" method="POST">
+                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                  <button type="submit" class="text-xs border border-red-200 text-red-500 px-3 py-1.5 rounded-lg hover:bg-red-50">Delete</button>
+                </form>
+              <% } %>
+            </div>
+          </div>
+        <% }) %>
+      </div>
+    <% } else { %>
+      <p class="text-sm text-slate-500">No tasks yet. Add one above to get started.</p>
+    <% } %>
+  </div>
+</div>

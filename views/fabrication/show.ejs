@@ -1,0 +1,200 @@
+<div class="bg-white p-6 shadow rounded-2xl max-w-3xl mx-auto">
+  <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between mb-4">
+    <div>
+      <h1 class="text-2xl font-bold mb-1"><%= item.name %></h1>
+      <div class="flex flex-wrap gap-2 text-sm text-slate-600">
+        <span class="bg-slate-100 px-2 py-0.5 rounded-full"><%= typeLabel(item.type) %></span>
+        <span class="<%= item.status === 'ACTIVE' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-600' %> px-2 py-0.5 rounded-full font-semibold text-xs"><%= item.status %></span>
+        <% if (item.printCategory) { %>
+          <span class="bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full text-xs"><%= item.printCategory === 'PAID' ? 'Paid Job' : 'In-House' %></span>
+        <% } %>
+        <% if (item.projectName) { %>
+          <span class="bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full text-xs">Project: <strong><%= item.projectName %></strong></span>
+        <% } %>
+      </div>
+    </div>
+    <div class="flex flex-col gap-2 sm:items-end">
+      <a href="/fabrication/<%= item.id %>/invoice.pdf" target="_blank" class="rounded-xl bg-green-600 px-4 py-2 text-sm text-white hover:bg-green-700 text-center">Invoice PDF</a>
+      <% if (item.status === 'ACTIVE') { %>
+        <form action="/fabrication/<%= item.id %>/complete" method="POST" class="w-full m-0">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <button type="submit" class="w-full rounded-xl bg-slate-950 px-4 py-2 text-sm text-white hover:bg-black text-center font-semibold">Mark Complete</button>
+        </form>
+      <% } %>
+      <% if (locals.currentUser && locals.currentUser.role === 'ADMIN') { %>
+        <form action="/fabrication/<%= item.id %>/delete" method="POST" class="w-full m-0" onsubmit="return confirm('Are you sure you want to permanently delete this fabrication record and all associated file entries?');">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <button type="submit" class="w-full rounded-xl bg-red-600 px-4 py-2 text-sm text-white hover:bg-red-700 text-center font-semibold">Delete Job</button>
+        </form>
+      <% } %>
+    </div>
+  </div>
+
+  <!-- Meta info -->
+  <div class="grid grid-cols-2 gap-3 text-sm mb-5 sm:grid-cols-4">
+    <div class="bg-slate-50 rounded-xl p-3">
+      <div class="text-xs text-slate-500">Date</div>
+      <div class="font-medium mt-0.5"><%= item.date ? item.date.toISOString().split('T')[0] : '—' %></div>
+    </div>
+    <div class="bg-slate-50 rounded-xl p-3">
+      <div class="text-xs text-slate-500">Worker</div>
+      <div class="font-medium mt-0.5"><%= item.author.name %></div>
+    </div>
+    <div class="bg-slate-50 rounded-xl p-3">
+      <div class="text-xs text-slate-500">Est. Duration</div>
+      <div class="font-medium mt-0.5"><%= item.estimatedMinutes ? item.estimatedMinutes + ' min' : '—' %></div>
+    </div>
+    <div class="bg-slate-50 rounded-xl p-3">
+      <div class="text-xs text-slate-500">Actual Duration</div>
+      <div class="font-medium mt-0.5">
+        <% if (item.actualMinutes != null) { %>
+          <%= Math.floor(item.actualMinutes / 60) %>h <%= item.actualMinutes % 60 %>m
+          <% if (item.estimatedMinutes) { %>
+            <span class="text-xs <%= item.actualMinutes <= item.estimatedMinutes ? 'text-emerald-600' : 'text-orange-500' %>">
+              (<%= (item.estimatedMinutes / item.actualMinutes).toFixed(2) %>x)
+            </span>
+          <% } %>
+        <% } else { %>
+          <span class="text-slate-400">In progress</span>
+        <% } %>
+      </div>
+    </div>
+  </div>
+
+  <% if (item.description) { %>
+    <p class="text-slate-700 whitespace-pre-wrap mb-5"><%= item.description %></p>
+  <% } %>
+
+  <!-- Files -->
+  <div class="mb-5">
+    <h2 class="text-lg font-semibold mb-2">Attached Files</h2>
+    <% if (item.files && item.files.length) { %>
+      <div class="responsive-table">
+        <table class="w-full text-sm border rounded-xl overflow-hidden">
+          <thead>
+            <tr class="bg-slate-50 border-b">
+              <th class="p-2 text-left">File</th>
+              <% if (item.type === '3D_PRINTING') { %><th class="p-2 text-left">Mass (g)</th><% } %>
+              <th class="p-2 text-left">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% item.files.forEach(file => { %>
+              <tr class="border-t">
+                <td class="p-2"><%= file.originalName %></td>
+                <% if (item.type === '3D_PRINTING') { %>
+                  <td class="p-2"><%= file.massGrams != null ? Number(file.massGrams).toFixed(2) + ' g' : '—' %></td>
+                <% } %>
+                <td class="p-2">
+                  <% if (file.path) { %>
+                    <a href="<%= file.path %>" class="text-blue-600 hover:underline text-xs" target="_blank">Open</a>
+                  <% } else { %>
+                    <span class="text-xs text-slate-400">Name/mass entry</span>
+                  <% } %>
+                </td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    <% } else { %>
+      <p class="text-sm text-slate-500">No files attached.</p>
+    <% } %>
+  </div>
+
+  <!-- Invoice Preview -->
+  <% if (invoice) { %>
+    <div class="border border-green-200 bg-green-50 rounded-2xl p-4 mb-5">
+      <h2 class="text-base font-semibold text-green-900 mb-3">Invoice Preview</h2>
+      <% if (item.type === '3D_PRINTING') { %>
+        <div class="grid grid-cols-2 gap-2 text-sm text-green-900">
+          <div>Rate per gram: <strong>&#8373;<%= Number(invoice.ratePerGram).toFixed(2) %></strong></div>
+          <div>Total mass: <strong><%= Number(invoice.totalMass).toFixed(2) %> g</strong></div>
+          <div>Print cost: <strong>&#8373;<%= Number(invoice.fileCostTotal).toFixed(2) %></strong></div>
+          <div>Additional: <strong>&#8373;<%= Number(invoice.additionalCharges).toFixed(2) %></strong></div>
+        </div>
+        <% if (item.lineItems && item.lineItems.length) { %>
+          <div class="border-t border-green-200 pt-2 mt-2 text-sm text-green-900">
+            <div class="font-semibold mb-1">Additional Items:</div>
+            <ul class="list-disc list-inside space-y-1">
+              <% item.lineItems.forEach(li => { %>
+                <li>
+                  <%= li.label %>: <%= li.quantity %> &times; &#8373;<%= Number(li.cost).toFixed(2) %> = <strong>&#8373;<%= Number(li.quantity * li.cost).toFixed(2) %></strong>
+                </li>
+              <% }) %>
+            </ul>
+          </div>
+        <% } %>
+      <% } else { %>
+        <div class="space-y-2 text-sm text-green-900">
+          <div>Service: <strong><%= invoice.typeLabel %></strong></div>
+          <% if (item.lineItems && item.lineItems.length) { %>
+            <div class="border-t border-green-200 pt-2 mt-2">
+              <div class="font-semibold mb-1">Cost Breakdown:</div>
+              <ul class="list-disc list-inside space-y-1">
+                <% item.lineItems.forEach(li => { %>
+                  <li>
+                    <%= li.label %>: <%= li.quantity %> &times; &#8373;<%= Number(li.cost).toFixed(2) %> = <strong>&#8373;<%= Number(li.quantity * li.cost).toFixed(2) %></strong>
+                  </li>
+                <% }) %>
+              </ul>
+            </div>
+          <% } else { %>
+            <div>Cost: <strong>&#8373;<%= Number(invoice.additionalCharges).toFixed(2) %></strong></div>
+          <% } %>
+        </div>
+      <% } %>
+      <div class="mt-3 text-base font-semibold text-green-900 border-t border-green-200 pt-2">Total Cost: &#8373;<%= Number(invoice.totalCost).toFixed(2) %></div>
+    </div>
+  <% } %>
+
+  <!-- Payments and receipts -->
+  <div class="border border-blue-200 bg-blue-50 rounded-2xl p-4 mb-5">
+    <div class="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between mb-3">
+      <h2 class="text-base font-semibold text-blue-950">Payments & Receipts</h2>
+      <div class="text-sm text-blue-900">
+        Outstanding: <strong>&#8373;<%= Number(paymentSummary.outstanding).toFixed(2) %></strong>
+      </div>
+    </div>
+    <div class="grid grid-cols-2 gap-2 text-sm text-blue-900 mb-4">
+      <div>Invoice total: <strong>&#8373;<%= Number(paymentSummary.invoiceTotal).toFixed(2) %></strong></div>
+      <div>Received: <strong>&#8373;<%= Number(paymentSummary.paid).toFixed(2) %></strong></div>
+    </div>
+
+    <% if (paymentSummary.outstanding > 0) { %>
+      <form action="/fabrication/<%= item.id %>/payments" method="POST" class="grid grid-cols-1 sm:grid-cols-2 gap-3 border-t border-blue-200 pt-4">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <input required name="amount" type="number" min="0.01" max="<%= Number(paymentSummary.outstanding).toFixed(2) %>" step="0.01" class="border rounded-xl px-3 py-2 text-sm bg-white" placeholder="Amount received (GHS)">
+        <select required name="method" class="border rounded-xl px-3 py-2 text-sm bg-white">
+          <option value="">Payment method</option>
+          <option>Mobile Money</option>
+          <option>Bank Transfer</option>
+          <option>Cash</option>
+          <option>Card</option>
+          <option>Other</option>
+        </select>
+        <input name="reference" class="border rounded-xl px-3 py-2 text-sm bg-white" placeholder="Reference / transaction ID (optional)">
+        <div class="flex gap-2">
+          <input name="notes" class="min-w-0 flex-1 border rounded-xl px-3 py-2 text-sm bg-white" placeholder="Note (optional)">
+          <button class="bg-blue-700 text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-blue-800">Record & receipt</button>
+        </div>
+      </form>
+    <% } else { %>
+      <p class="text-sm text-emerald-700 font-medium border-t border-blue-200 pt-3">This invoice has been paid in full.</p>
+    <% } %>
+
+    <% if (item.payments && item.payments.length) { %>
+      <div class="mt-4 border-t border-blue-200 pt-3 space-y-2">
+        <% item.payments.forEach(payment => { %>
+          <div class="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between text-sm bg-white rounded-xl px-3 py-2">
+            <span><strong>&#8373;<%= Number(payment.amount).toFixed(2) %></strong> via <%= payment.method %> · <%= payment.paidAt.toISOString().split('T')[0] %> · received by <%= payment.receivedBy.name %></span>
+            <a class="text-blue-700 font-semibold hover:underline" target="_blank" href="/fabrication/<%= item.id %>/receipts/<%= payment.id %>.pdf">Receipt PDF</a>
+          </div>
+        <% }) %>
+      </div>
+    <% } %>
+  </div>
+
+  <p class="text-xs text-slate-500 mb-3">Recorded by <%= item.author.name %> on <%= item.createdAt.toISOString().split('T')[0] %></p>
+  <a href="/fabrication" class="text-blue-600 hover:underline text-sm">&larr; Back to list</a>
+</div>

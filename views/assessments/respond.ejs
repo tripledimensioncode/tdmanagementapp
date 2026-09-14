@@ -1,0 +1,37 @@
+<div class="bg-white p-6 rounded shadow max-w-2xl mx-auto">
+  <h2 class="text-2xl font-semibold mb-2">Respond: <%= template.title %></h2>
+  <div class="text-sm text-gray-500 mb-6">Please answer the questions below.</div>
+  <form action="/assessments/respond/<%= template.id %>" method="POST" class="space-y-6">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <% const questions = template.questions || []; %>
+    <% if (questions.length) { %>
+      <% questions.forEach((q, idx)=>{ %>
+        <div class="border-b pb-4">
+          <label class="block font-medium mb-3">Q<%= idx+1 %>: <%= q.label %></label>
+          <% if (q.type === 'TEXT') { %>
+            <textarea name="q<%= idx %>" class="w-full border border-gray-300 px-3 py-2 rounded" rows="3"></textarea>
+          <% } else if (q.type === 'NUMBER') { %>
+            <input type="number" min="1" max="10" name="q<%= idx %>" class="w-full border border-gray-300 px-3 py-2 rounded" />
+          <% } else if (q.type === 'YESNO') { %>
+            <select name="q<%= idx %>" class="w-full border border-gray-300 px-3 py-2 rounded">
+              <option value="">— Select —</option>
+              <option value="Yes">Yes</option>
+              <option value="No">No</option>
+            </select>
+          <% } else if (q.type === 'MULTIPLE_CHOICE') { %>
+            <select name="q<%= idx %>" class="w-full border border-gray-300 px-3 py-2 rounded">
+              <option value="">— Select —</option>
+              <% (q.options||[]).forEach(opt=>{ %>
+                <option value="<%= opt %>"><%= opt %></option>
+              <% }) %>
+            </select>
+          <% } %>
+        </div>
+      <% }) %>
+    <% } %>
+    <div class="flex gap-3 pt-4">
+      <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 font-medium">Submit Assessment</button>
+      <a href="/assessments" class="border border-gray-300 px-6 py-2 rounded hover:bg-gray-50">Cancel</a>
+    </div>
+  </form>
+</div>

@@ -1,0 +1,813 @@
+<%
+  const TYPE_LABELS = {
+    '3D_PRINTING':'3D Printing','FIBER_LASER':'Fiber Laser Cutting',
+    'CO2_LASER':'CO2 Laser Cutting','ELECTRONICS':'Electronics Build','3D_MODELLING':'3D Modelling'
+  };
+  const TYPE_COLORS = {
+    '3D_PRINTING':'bg-blue-100 text-blue-700','FIBER_LASER':'bg-orange-100 text-orange-700',
+    'CO2_LASER':'bg-purple-100 text-purple-700','ELECTRONICS':'bg-emerald-100 text-emerald-700','3D_MODELLING':'bg-slate-100 text-slate-700'
+  };
+  // Helper: format minutes to Xh Ym
+  function fmtMin(m) { if (!m && m !== 0) return '—'; return Math.floor(m/60)+'h '+(m%60)+'m'; }
+%>
+
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     ADMIN COMMAND CENTRE (only visible to admins)
+═══════════════════════════════════════════════════════════════════════════ -->
+<% if (isAdmin && adminStats) { %>
+
+<!-- Admin header -->
+<div class="mb-6 flex items-center justify-between">
+  <div class="flex items-center gap-3">
+    <img src="/public/images/triple-dimension-logo.svg" alt="TRIPLE DIMENSION" class="h-10 w-10 object-contain flex-shrink-0" />
+    <div>
+      <h1 class="text-xl font-bold text-slate-900">Workshop Overview</h1>
+      <p class="text-xs text-slate-500"><%= new Date().toLocaleDateString('en-GB', { weekday:'long', year:'numeric', month:'long', day:'numeric' }) %></p>
+    </div>
+  </div>
+  <a href="/analytics" class="hidden sm:inline-flex items-center gap-1 rounded-xl bg-slate-800 text-white px-4 py-2 text-sm font-semibold hover:bg-black transition">
+    Full Analytics &rarr;
+  </a>
+</div>
+
+<!-- KPI stat cards row -->
+<div class="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-6 mb-6">
+
+  <div class="rounded-2xl bg-emerald-600 p-4 text-white shadow">
+    <div class="text-3xl font-extrabold"><%= activeJobs.length %></div>
+    <div class="text-xs font-medium mt-1 opacity-80">Active Jobs Now</div>
+  </div>
+
+  <div class="rounded-2xl bg-white p-4 shadow border-l-4 border-blue-500">
+    <div class="text-3xl font-extrabold text-blue-700"><%= adminStats.totalJobsThisMonth %></div>
+    <div class="text-xs font-medium text-slate-500 mt-1">Jobs This Month</div>
+    <div class="text-xs text-slate-400 mt-0.5"><%= adminStats.completedThisMonth %> completed</div>
+  </div>
+
+  <div class="rounded-2xl bg-white p-4 shadow border-l-4 border-purple-500">
+    <div class="text-3xl font-extrabold text-purple-700"><%= adminStats.totalJobsThisWeek %></div>
+    <div class="text-xs font-medium text-slate-500 mt-1">Jobs This Week</div>
+    <div class="text-xs text-slate-400 mt-0.5"><%= adminStats.totalHoursThisWeek %>h logged</div>
+  </div>
+
+  <div class="rounded-2xl bg-white p-4 shadow border-l-4 border-emerald-500">
+    <div class="text-3xl font-extrabold text-emerald-700">&#8373;<%= adminStats.incomeThisMonth.toFixed(0) %></div>
+    <div class="text-xs font-medium text-slate-500 mt-1">Income This Month</div>
+    <div class="text-xs text-red-400 mt-0.5">&#8722; &#8373;<%= adminStats.expenditureThisMonth.toFixed(0) %> spent</div>
+  </div>
+
+  <div class="rounded-2xl bg-white p-4 shadow border-l-4 border-amber-400">
+    <div class="text-3xl font-extrabold text-amber-600"><%= subscriberStats.activeCount %></div>
+    <div class="text-xs font-medium text-slate-500 mt-1">Active Subscribers</div>
+    <% if (subscriberStats.expiringCount > 0) { %>
+      <div class="text-xs text-amber-500 mt-0.5">&#9888; <%= subscriberStats.expiringCount %> expiring soon</div>
+    <% } %>
+  </div>
+
+  <div class="rounded-2xl bg-white p-4 shadow border-l-4 border-slate-400">
+    <div class="text-3xl font-extrabold text-slate-700"><%= checkedInWorkers.length %></div>
+    <div class="text-xs font-medium text-slate-500 mt-1">In Workshop Now</div>
+    <% if (adminStats.pendingFundingRequests > 0) { %>
+      <div class="text-xs text-red-500 mt-0.5">&#9888; <%= adminStats.pendingFundingRequests %> pending fund req.</div>
+    <% } %>
+  </div>
+
+</div>
+
+<!-- Main admin grid -->
+<div class="grid grid-cols-1 gap-6 xl:grid-cols-3 mb-6">
+
+  <!-- Left (2/3): Active jobs + recent activity -->
+  <div class="xl:col-span-2 space-y-6">
+
+    <!-- Active Jobs Board -->
+    <div class="rounded-2xl bg-white p-5 shadow">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-base font-semibold">Active Jobs <span class="ml-1 text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full"><%= activeJobs.length %></span></h2>
+        <div class="flex items-center gap-2">
+          <span class="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
+          <span class="text-xs text-slate-400" id="jobBoardLastUpdate">Live</span>
+          <a href="/fabrication/new" class="ml-2 text-xs bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700 transition">+ New Job</a>
+        </div>
+      </div>
+      <div id="activeJobsContainer">
+        <% if (activeJobs && activeJobs.length) { %>
+          <div class="space-y-2">
+            <% activeJobs.forEach(function(job) { %>
+              <a href="/fabrication/<%= job.id %>" class="flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50/50 px-4 py-3 hover:bg-emerald-50 transition">
+                <div class="min-w-0 flex-1">
+                  <div class="font-medium text-sm text-slate-900 truncate"><%= job.name %></div>
+                  <div class="text-xs text-slate-500 mt-0.5">
+                    <span class="<%= TYPE_COLORS[job.type] || 'bg-slate-100 text-slate-600' %> px-1.5 py-0.5 rounded text-xs font-medium"><%= TYPE_LABELS[job.type] || job.type %></span>
+                    &mdash; <%= job.author.name %>
+                    <% if (job.startedAt) { %>
+                      &mdash; started <%= new Date(job.startedAt).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) %>
+                    <% } %>
+                  </div>
+                </div>
+                <span class="flex-shrink-0 text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-semibold">ACTIVE</span>
+              </a>
+            <% }); %>
+          </div>
+        <% } else { %>
+          <div class="flex flex-col items-center justify-center py-8 text-slate-400">
+            <div class="text-4xl mb-2">&#9744;</div>
+            <p class="text-sm">Workshop is clear — no active jobs.</p>
+            <a href="/fabrication/new" class="mt-3 text-blue-600 text-sm hover:underline">Start a new job</a>
+          </div>
+        <% } %>
+      </div>
+    </div>
+
+    <!-- Jobs by service type this month -->
+    <div class="rounded-2xl bg-white p-5 shadow">
+      <h2 class="text-base font-semibold mb-4">Jobs by Type — This Month</h2>
+      <% if (adminStats.jobsByType && adminStats.jobsByType.length) { %>
+        <div class="space-y-2">
+          <% adminStats.jobsByType.sort((a,b) => b._count.id - a._count.id).forEach(function(row) { %>
+            <%
+              const maxCount = Math.max(...adminStats.jobsByType.map(r => r._count.id));
+              const pct = maxCount > 0 ? Math.round((row._count.id / maxCount) * 100) : 0;
+            %>
+            <div class="flex items-center gap-3">
+              <div class="w-32 flex-shrink-0 text-xs text-slate-600 truncate"><%= TYPE_LABELS[row.type] || row.type %></div>
+              <div class="flex-1 bg-slate-100 rounded-full h-2.5 overflow-hidden">
+                <div class="h-full rounded-full bg-blue-500 transition-all" style="width:<%= pct %>%"></div>
+              </div>
+              <div class="w-8 text-right text-xs font-bold text-slate-700"><%= row._count.id %></div>
+            </div>
+          <% }); %>
+        </div>
+      <% } else { %>
+        <p class="text-sm text-slate-400">No jobs recorded this month yet.</p>
+      <% } %>
+    </div>
+
+    <!-- Recent activity feed -->
+    <div class="rounded-2xl bg-white p-5 shadow">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-base font-semibold">Recent Activity</h2>
+        <a href="/fabrication" class="text-xs text-blue-600 hover:underline">All jobs &rarr;</a>
+      </div>
+      <div class="space-y-2">
+        <% adminStats.recentActivity.forEach(function(f) { %>
+          <a href="/fabrication/<%= f.id %>" class="flex items-center gap-3 rounded-xl border border-slate-100 px-3 py-2 hover:bg-slate-50 transition">
+            <span class="<%= f.status === 'ACTIVE' ? 'bg-emerald-500' : 'bg-slate-300' %> h-2 w-2 rounded-full flex-shrink-0"></span>
+            <div class="min-w-0 flex-1">
+              <div class="text-sm font-medium text-slate-900 truncate"><%= f.name %></div>
+              <div class="text-xs text-slate-400"><%= TYPE_LABELS[f.type] || f.type %> &mdash; <%= f.author.name %></div>
+            </div>
+            <div class="text-xs text-slate-400 flex-shrink-0 text-right">
+              <span class="<%= f.status === 'ACTIVE' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500' %> px-1.5 py-0.5 rounded-full text-xs font-medium"><%= f.status %></span>
+            </div>
+          </a>
+        <% }); %>
+      </div>
+    </div>
+
+    <!-- Potential Customers to Push -->
+    <div class="rounded-2xl bg-white p-5 shadow border-l-4 border-amber-500">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-base font-semibold text-slate-900 flex items-center gap-1.5">
+          <span>👥 Potential Customers (Pending Jobs)</span>
+          <span class="text-xs bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-bold"><%= potentialCustomers.length %></span>
+        </h2>
+        <a href="/customers" class="text-xs text-blue-600 hover:underline">Manage Customers &rarr;</a>
+      </div>
+      <% if (potentialCustomers && potentialCustomers.length) { %>
+        <div class="space-y-3">
+          <% potentialCustomers.forEach(function(cust) { %>
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 rounded-xl bg-amber-50/50 border border-amber-100 hover:bg-amber-50 transition">
+              <div class="min-w-0">
+                <div class="font-semibold text-sm text-slate-900 truncate flex items-center gap-1.5">
+                  <%= cust.name %>
+                  <% if (cust.phone) { %>
+                    <span class="text-xs font-normal text-slate-500">(📞 <%= cust.phone %>)</span>
+                  <% } %>
+                </div>
+                <div class="text-xs text-slate-600 mt-1">
+                  <% if (cust.lastJobDetails) { %>
+                    <span class="bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded text-[10px] font-medium">Last job: <%= cust.lastJobDetails %></span>
+                  <% } %>
+                  <% if (cust.comment) { %>
+                    <span class="italic block mt-1 text-slate-500">&ldquo;<%= cust.comment %>&rdquo;</span>
+                  <% } %>
+                </div>
+                <div class="text-[10px] text-slate-400 mt-1">
+                  <% if (cust.lastCalled) { %>
+                    Last called: <%= new Date(cust.lastCalled).toLocaleDateString('en-GB') %>
+                    <% if (cust.attendedBy) { %>
+                      by <%= cust.attendedBy.name %>
+                    <% } %>
+                  <% } else { %>
+                    <span class="text-red-400 font-bold">Never called</span>
+                  <% } %>
+                </div>
+              </div>
+              <div class="flex-shrink-0">
+                <form action="/customers/<%= cust.id %>/call" method="POST" class="m-0">
+                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                  <button type="submit" class="bg-amber-600 text-white hover:bg-amber-700 px-3 py-1.5 rounded-lg text-xs font-semibold shadow-sm transition">
+                    📞 Log Call
+                  </button>
+                </form>
+              </div>
+            </div>
+          <% }); %>
+        </div>
+      <% } else { %>
+        <div class="text-center py-4 text-slate-400 text-sm">
+          No potential customers flagged currently.
+        </div>
+      <% } %>
+    </div>
+
+  </div><!-- end left col -->
+
+  <!-- Right (1/3): workforce + finances + NAS -->
+  <div class="space-y-6">
+
+    <!-- Who's in the workshop -->
+    <div class="rounded-2xl bg-white p-5 shadow">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="text-base font-semibold">In Workshop Now</h2>
+        <a href="/attendance/admin" class="text-xs text-blue-600 hover:underline">Admin view</a>
+      </div>
+      <% if (checkedInWorkers && checkedInWorkers.length) { %>
+        <ul class="space-y-2">
+          <% checkedInWorkers.forEach(function(rec) { %>
+            <li class="flex items-center gap-3 rounded-xl bg-emerald-50 border border-emerald-100 px-3 py-2">
+              <span class="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse flex-shrink-0"></span>
+              <div class="min-w-0">
+                <div class="text-sm font-semibold text-slate-900 truncate"><%= rec.user.name %></div>
+                <div class="text-xs text-emerald-600">Since <%= new Date(rec.checkInAt).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}) %></div>
+              </div>
+            </li>
+          <% }); %>
+        </ul>
+        <p class="text-xs text-slate-400 mt-2"><%= adminStats.allWorkers.length %> total team members</p>
+      <% } else { %>
+        <div class="rounded-xl bg-slate-50 border border-dashed border-slate-200 p-4 text-center text-sm text-slate-400">
+          No one checked in yet today
+        </div>
+      <% } %>
+    </div>
+
+    <!-- Finances this month -->
+    <div class="rounded-2xl bg-white p-5 shadow">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="text-base font-semibold">Finances — This Month</h2>
+        <a href="/funds" class="text-xs text-blue-600 hover:underline">All funds</a>
+      </div>
+      <div class="space-y-3">
+        <div class="flex items-center justify-between rounded-xl bg-emerald-50 border border-emerald-100 px-4 py-3">
+          <span class="text-sm text-emerald-700 font-medium">Income</span>
+          <span class="text-lg font-bold text-emerald-700">&#8373;<%= adminStats.incomeThisMonth.toFixed(2) %></span>
+        </div>
+        <div class="flex items-center justify-between rounded-xl bg-red-50 border border-red-100 px-4 py-3">
+          <span class="text-sm text-red-600 font-medium">Expenditure</span>
+          <span class="text-lg font-bold text-red-600">&#8373;<%= adminStats.expenditureThisMonth.toFixed(2) %></span>
+        </div>
+        <%
+          const net = adminStats.incomeThisMonth - adminStats.expenditureThisMonth;
+          const netPositive = net >= 0;
+        %>
+        <div class="flex items-center justify-between rounded-xl <%= netPositive ? 'bg-slate-50 border-slate-200' : 'bg-amber-50 border-amber-200' %> border px-4 py-3">
+          <span class="text-sm font-medium text-slate-700">Net</span>
+          <span class="text-lg font-bold <%= netPositive ? 'text-slate-700' : 'text-amber-600' %>">
+            <%= net >= 0 ? '+' : '' %>&#8373;<%= Math.abs(net).toFixed(2) %>
+          </span>
+        </div>
+        <% if (adminStats.pendingFundingRequests > 0) { %>
+          <a href="/funds" class="flex items-center gap-2 rounded-xl bg-amber-50 border border-amber-200 px-4 py-2 hover:bg-amber-100 transition">
+            <span class="text-amber-600 text-lg">&#9888;</span>
+            <span class="text-sm text-amber-700 font-medium"><%= adminStats.pendingFundingRequests %> pending funding request<%= adminStats.pendingFundingRequests !== 1 ? 's' : '' %></span>
+          </a>
+        <% } %>
+      </div>
+    </div>
+
+    <!-- ── Attendance card (admin) ───────────────────────────────────────── -->
+    <div class="rounded-2xl bg-white p-5 shadow">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="text-base font-semibold">My Attendance</h2>
+        <a href="/attendance" class="text-xs text-blue-600 hover:underline">Full history &rarr;</a>
+      </div>
+
+      <!-- today's status -->
+      <% if (todayAttendance) { %>
+        <div class="flex items-center gap-2 rounded-xl bg-emerald-50 border border-emerald-200 px-3 py-2 mb-3">
+          <span class="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse flex-shrink-0"></span>
+          <div class="text-sm text-emerald-800 flex-1">
+            <strong>In</strong> since <%= new Date(todayAttendance.checkInAt).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}) %>
+          </div>
+          <form action="/attendance/checkout?_csrf=<%= encodeURIComponent(csrfToken) %>" method="POST">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <button type="submit" class="text-xs bg-red-100 text-red-700 px-3 py-1 rounded-lg hover:bg-red-200 transition">Check Out</button>
+          </form>
+        </div>
+      <% } else { %>
+        <div class="mb-3">
+          <form action="/attendance/checkin?_csrf=<%= encodeURIComponent(csrfToken) %>" method="POST" class="inline-block">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <button type="submit" class="bg-emerald-600 text-white px-4 py-1.5 rounded-xl text-xs font-semibold hover:bg-emerald-700 transition">&#9679; Check In</button>
+          </form>
+        </div>
+      <% } %>
+
+      <!-- recent sessions table -->
+      <% if (recentAttendance && recentAttendance.length) { %>
+        <div class="overflow-x-auto">
+          <table class="w-full text-xs">
+            <thead>
+              <tr class="border-b text-slate-400">
+                <th class="pb-1.5 text-left font-medium">Date</th>
+                <th class="pb-1.5 text-left font-medium">In</th>
+                <th class="pb-1.5 text-left font-medium">Out</th>
+                <th class="pb-1.5 text-right font-medium">Duration</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% recentAttendance.forEach(function(r) { %>
+                <tr class="border-t">
+                  <td class="py-1.5 text-slate-600"><%= new Date(r.checkInAt).toLocaleDateString([],{weekday:'short',month:'short',day:'numeric'}) %></td>
+                  <td class="py-1.5 text-slate-600"><%= new Date(r.checkInAt).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}) %></td>
+                  <td class="py-1.5">
+                    <% if (r.checkOutAt) { %>
+                      <span class="text-slate-600"><%= new Date(r.checkOutAt).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}) %></span>
+                    <% } else { %>
+                      <span class="text-emerald-600 font-semibold">Active</span>
+                    <% } %>
+                  </td>
+                  <td class="py-1.5 text-right font-mono text-slate-600">
+                    <% if (r.durationMin != null) { %><%= fmtMin(r.durationMin) %><% } else { %>—<% } %>
+                  </td>
+                </tr>
+              <% }); %>
+            </tbody>
+          </table>
+        </div>
+      <% } else { %>
+        <p class="text-xs text-slate-400">No sessions recorded yet.</p>
+      <% } %>
+    </div>
+
+    <!-- Inventory quick stats -->
+    <div class="rounded-2xl bg-white p-5 shadow">
+      <h2 class="text-base font-semibold mb-3">Inventory</h2>
+      <div class="space-y-2">
+        <a href="/inventory" class="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50 px-4 py-3 hover:bg-slate-100 transition">
+          <div>
+            <div class="text-sm font-semibold text-slate-800">Inventory</div>
+            <div class="text-xs text-slate-500"><%= adminStats.totalInventoryItems %> item types tracked</div>
+          </div>
+          <span class="text-slate-400 text-lg">&rarr;</span>
+        </a>
+        <a href="/work-updates" class="flex items-center justify-between rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 hover:bg-blue-100 transition">
+          <div>
+            <div class="text-sm font-semibold text-blue-900">Team Updates</div>
+            <div class="text-xs text-blue-600">See what the team is working on</div>
+          </div>
+          <span class="text-blue-400 text-lg">&rarr;</span>
+        </a>
+      </div>
+    </div>
+
+    <!-- Subscribers snapshot -->
+    <div class="rounded-2xl bg-white p-5 shadow">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="text-base font-semibold">Subscribers</h2>
+        <a href="/subscribers" class="text-xs text-blue-600 hover:underline">View all</a>
+      </div>
+      <div class="grid grid-cols-2 gap-3 mb-3">
+        <div class="rounded-xl bg-emerald-50 border border-emerald-100 p-3 text-center">
+          <div class="text-2xl font-bold text-emerald-700"><%= subscriberStats.activeCount %></div>
+          <div class="text-xs text-emerald-600 mt-0.5">Active</div>
+        </div>
+        <div class="rounded-xl <%= subscriberStats.expiringCount > 0 ? 'bg-amber-50 border-amber-200' : 'bg-slate-50 border-slate-100' %> border p-3 text-center">
+          <div class="text-2xl font-bold <%= subscriberStats.expiringCount > 0 ? 'text-amber-600' : 'text-slate-400' %>">
+            <%= subscriberStats.expiringCount %>
+          </div>
+          <div class="text-xs <%= subscriberStats.expiringCount > 0 ? 'text-amber-500' : 'text-slate-400' %> mt-0.5">Expiring &le;14d</div>
+        </div>
+      </div>
+      <% if (subscriberStats.recent && subscriberStats.recent.length) { %>
+        <div class="space-y-1.5">
+          <% subscriberStats.recent.slice(0, 3).forEach(function(sub) { %>
+            <a href="/subscribers/<%= sub.id %>" class="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-slate-50 transition">
+              <span class="h-2 w-2 rounded-full bg-emerald-400 flex-shrink-0"></span>
+              <div class="min-w-0 flex-1 text-xs">
+                <span class="font-medium text-slate-800 truncate block"><%= sub.name %></span>
+              </div>
+              <span class="text-xs text-slate-400 flex-shrink-0"><%= new Date(sub.endDate).toLocaleDateString() %></span>
+            </a>
+          <% }); %>
+        </div>
+      <% } %>
+      <a href="/subscribers/new" class="mt-3 block text-center text-xs bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700 transition">+ Add Subscriber</a>
+    </div>
+
+  </div><!-- end right col -->
+
+</div><!-- end admin grid -->
+
+<!-- ── MY CHECK-IN (admin's own personal status, below the overview) ─── -->
+<div class="rounded-2xl bg-white p-5 shadow mb-6">
+  <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <div>
+      <h2 class="text-base font-semibold">My Status Today</h2>
+      <% if (todayLog && todayLog.summary) { %>
+        <p class="text-sm text-slate-600 mt-0.5"><%= todayLog.summary %></p>
+      <% } else { %>
+        <a href="/my-day" class="text-sm text-slate-400 hover:underline">Set today's focus &rarr;</a>
+      <% } %>
+    </div>
+    <% if (todayAttendance) { %>
+      <div class="flex items-center gap-3">
+        <div class="text-sm text-emerald-700">&#9679; Checked in &mdash; <span id="dashElapsed" class="font-mono">…</span></div>
+        <form action="/attendance/checkout?_csrf=<%= encodeURIComponent(csrfToken) %>" method="POST">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <button type="submit" class="text-xs bg-red-100 text-red-700 px-3 py-1.5 rounded-lg hover:bg-red-200 transition">Check Out</button>
+        </form>
+      </div>
+    <% } else { %>
+      <form action="/attendance/checkin?_csrf=<%= encodeURIComponent(csrfToken) %>" method="POST">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <button type="submit" class="bg-emerald-600 text-white px-5 py-2 rounded-xl text-sm font-semibold hover:bg-emerald-700 transition">&#9679; Check In</button>
+      </form>
+    <% } %>
+  </div>
+</div>
+
+<% } else { %>
+<!-- ══════════════════════════════════════════════════════════════════════════
+     WORKER DASHBOARD (personal view)
+════════════════════════════════════════════════════════════════════════════ -->
+
+<div class="grid grid-cols-1 gap-6 xl:grid-cols-3">
+
+  <!-- LEFT (2/3) -->
+  <div class="xl:col-span-2 space-y-6">
+
+    <!-- Welcome + check-in -->
+    <div class="rounded-2xl bg-white p-5 shadow sm:p-6">
+      <div class="flex items-center gap-3 mb-3">
+        <img src="/public/images/triple-dimension-logo.svg" alt="TRIPLE DIMENSION" class="h-10 w-10 object-contain flex-shrink-0" />
+        <div>
+          <h1 class="text-xl font-bold text-slate-900">Welcome, <%= currentUser.name %></h1>
+          <p class="text-xs text-slate-500">Workshop Operations Dashboard</p>
+        </div>
+      </div>
+
+      <% if (todayAttendance) { %>
+        <div class="mt-3 flex flex-col gap-2 rounded-xl bg-emerald-50 border border-emerald-200 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+          <div class="flex items-center gap-2 text-sm text-emerald-800">
+            <span class="h-2.5 w-2.5 rounded-full bg-emerald-500 flex-shrink-0 animate-pulse"></span>
+            <span><strong>Checked in</strong> since
+              <%= new Date(todayAttendance.checkInAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) %>
+              &mdash; <span id="dashElapsed" class="font-mono">…</span>
+            </span>
+          </div>
+          <form action="/attendance/checkout?_csrf=<%= encodeURIComponent(csrfToken) %>" method="POST">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <button type="submit" class="text-xs bg-red-100 text-red-700 px-3 py-1.5 rounded-lg hover:bg-red-200 transition">Check Out</button>
+          </form>
+        </div>
+      <% } else { %>
+        <div class="mt-3">
+          <form action="/attendance/checkin?_csrf=<%= encodeURIComponent(csrfToken) %>" method="POST" class="inline-block">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <button type="submit" class="bg-emerald-600 text-white px-5 py-2 rounded-xl text-sm font-semibold hover:bg-emerald-700 transition">
+              &#9679; Check In for Today
+            </button>
+          </form>
+          <a href="/my-day" class="ml-3 text-sm text-blue-600 hover:underline">Set today's focus &rarr;</a>
+        </div>
+      <% } %>
+    </div>
+
+    <!-- Active Jobs Board -->
+    <div class="rounded-2xl bg-white p-5 shadow sm:p-6">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-base font-semibold text-slate-900">Active Jobs</h2>
+        <div class="flex items-center gap-2">
+          <span class="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
+          <span class="text-xs text-slate-400" id="jobBoardLastUpdate">Live</span>
+          <a href="/fabrication/new" class="ml-2 text-xs bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700 transition">+ New Job</a>
+        </div>
+      </div>
+      <div id="activeJobsContainer">
+        <% if (activeJobs && activeJobs.length) { %>
+          <div class="space-y-2">
+            <% activeJobs.forEach(function(job) { %>
+              <a href="/fabrication/<%= job.id %>" class="flex items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50/50 px-4 py-3 hover:bg-emerald-50 transition">
+                <div class="min-w-0">
+                  <div class="font-medium text-sm text-slate-900 truncate"><%= job.name %></div>
+                  <div class="text-xs text-slate-500 mt-0.5">
+                    <span class="<%= TYPE_COLORS[job.type] || 'bg-slate-100 text-slate-600' %> px-1.5 py-0.5 rounded text-xs"><%= TYPE_LABELS[job.type] || job.type %></span>
+                    &mdash; <%= job.author.name %>
+                  </div>
+                </div>
+                <span class="ml-3 flex-shrink-0 text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-semibold">ACTIVE</span>
+              </a>
+            <% }); %>
+          </div>
+        <% } else { %>
+          <p class="text-sm text-slate-400">No active jobs right now. <a href="/fabrication/new" class="text-blue-600 hover:underline">Start one</a>.</p>
+        <% } %>
+      </div>
+    </div>
+
+    <!-- Today's Log snapshot -->
+    <div class="rounded-2xl bg-white p-5 shadow sm:p-6">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="text-base font-semibold text-slate-900">Daily Log</h2>
+        <a href="/my-day" class="text-xs text-blue-600 hover:underline">Open full view &rarr;</a>
+      </div>
+      <% if (todayLog && todayLog.summary) { %>
+        <p class="text-sm text-slate-700 leading-relaxed mb-3"><%= todayLog.summary %></p>
+      <% } else { %>
+        <p class="text-sm text-slate-400 mb-3">No daily focus set yet. <a href="/my-day" class="text-blue-600 hover:underline">Set it now</a>.</p>
+      <% } %>
+      <% if (todayLog && todayLog.tasks && todayLog.tasks.length) { %>
+        <div class="space-y-1.5">
+          <% todayLog.tasks.slice(0, 5).forEach(function(t) { %>
+            <div class="flex items-center gap-2 text-sm">
+              <span class="h-2 w-2 rounded-full flex-shrink-0
+                <%= t.status === 'DONE' ? 'bg-slate-300' : t.status === 'IN_PROGRESS' ? 'bg-blue-500 animate-pulse' : 'bg-slate-200' %>"></span>
+              <span class="<%= t.status === 'DONE' ? 'line-through text-slate-400' : '' %> truncate"><%= t.title %></span>
+              <span class="ml-auto flex-shrink-0 text-xs text-slate-400"><%= t.status.toLowerCase().replace('_', ' ') %></span>
+            </div>
+          <% }); %>
+          <% if (todayLog.tasks.length > 5) { %>
+            <a href="/my-day" class="text-xs text-blue-600 hover:underline">+ <%= todayLog.tasks.length - 5 %> more tasks</a>
+          <% } %>
+        </div>
+      <% } %>
+    </div>
+
+    <!-- Potential Customers to Push -->
+    <div class="rounded-2xl bg-white p-5 shadow border-l-4 border-amber-500">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-base font-semibold text-slate-900 flex items-center gap-1.5">
+          <span>👥 Potential Customers (Pending Jobs)</span>
+          <span class="text-xs bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-bold"><%= potentialCustomers.length %></span>
+        </h2>
+        <a href="/customers" class="text-xs text-blue-600 hover:underline">Manage Customers &rarr;</a>
+      </div>
+      <% if (potentialCustomers && potentialCustomers.length) { %>
+        <div class="space-y-3">
+          <% potentialCustomers.forEach(function(cust) { %>
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 rounded-xl bg-amber-50/50 border border-amber-100 hover:bg-amber-50 transition">
+              <div class="min-w-0">
+                <div class="font-semibold text-sm text-slate-900 truncate flex items-center gap-1.5">
+                  <%= cust.name %>
+                  <% if (cust.phone) { %>
+                    <span class="text-xs font-normal text-slate-500">(📞 <%= cust.phone %>)</span>
+                  <% } %>
+                </div>
+                <div class="text-xs text-slate-600 mt-1">
+                  <% if (cust.lastJobDetails) { %>
+                    <span class="bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded text-[10px] font-medium">Last job: <%= cust.lastJobDetails %></span>
+                  <% } %>
+                  <% if (cust.comment) { %>
+                    <span class="italic block mt-1 text-slate-500">&ldquo;<%= cust.comment %>&rdquo;</span>
+                  <% } %>
+                </div>
+                <div class="text-[10px] text-slate-400 mt-1">
+                  <% if (cust.lastCalled) { %>
+                    Last called: <%= new Date(cust.lastCalled).toLocaleDateString('en-GB') %>
+                    <% if (cust.attendedBy) { %>
+                      by <%= cust.attendedBy.name %>
+                    <% } %>
+                  <% } else { %>
+                    <span class="text-red-400 font-bold">Never called</span>
+                  <% } %>
+                </div>
+              </div>
+              <div class="flex-shrink-0">
+                <form action="/customers/<%= cust.id %>/call" method="POST" class="m-0">
+                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                  <button type="submit" class="bg-amber-600 text-white hover:bg-amber-700 px-3 py-1.5 rounded-lg text-xs font-semibold shadow-sm transition">
+                    📞 Log Call
+                  </button>
+                </form>
+              </div>
+            </div>
+          <% }); %>
+        </div>
+      <% } else { %>
+        <div class="text-center py-4 text-slate-400 text-sm">
+          No potential customers flagged currently.
+        </div>
+      <% } %>
+    </div>
+
+  </div><!-- end left col -->
+
+  <!-- RIGHT (1/3) -->
+  <div class="space-y-6">
+
+    <!-- Workers in workshop now -->
+    <div class="rounded-2xl bg-white p-5 shadow">
+      <h2 class="text-base font-semibold mb-3">In Workshop Now</h2>
+      <% if (checkedInWorkers && checkedInWorkers.length) { %>
+        <ul class="space-y-2">
+          <% checkedInWorkers.forEach(function(rec) { %>
+            <li class="flex items-center gap-3">
+              <span class="h-2.5 w-2.5 rounded-full bg-emerald-500 flex-shrink-0"></span>
+              <div class="min-w-0">
+                <div class="text-sm font-medium text-slate-900 truncate"><%= rec.user.name %></div>
+                <div class="text-xs text-slate-400">Since <%= new Date(rec.checkInAt).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}) %></div>
+              </div>
+            </li>
+          <% }); %>
+        </ul>
+      <% } else { %>
+        <p class="text-sm text-slate-400">No one checked in yet today.</p>
+      <% } %>
+    </div>
+
+    <!-- ── Attendance card (worker) ──────────────────────────────────────── -->
+    <div class="rounded-2xl bg-white p-5 shadow">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="text-base font-semibold">My Attendance</h2>
+        <a href="/attendance" class="text-xs text-blue-600 hover:underline">Full history &rarr;</a>
+      </div>
+
+      <!-- today's status -->
+      <% if (todayAttendance) { %>
+        <div class="flex items-center gap-2 rounded-xl bg-emerald-50 border border-emerald-200 px-3 py-2 mb-3">
+          <span class="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse flex-shrink-0"></span>
+          <div class="text-sm text-emerald-800 flex-1">
+            <strong>In</strong> since <%= new Date(todayAttendance.checkInAt).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}) %>
+          </div>
+          <form action="/attendance/checkout?_csrf=<%= encodeURIComponent(csrfToken) %>" method="POST">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <button type="submit" class="text-xs bg-red-100 text-red-700 px-3 py-1 rounded-lg hover:bg-red-200 transition">Check Out</button>
+          </form>
+        </div>
+      <% } else { %>
+        <div class="mb-3">
+          <form action="/attendance/checkin?_csrf=<%= encodeURIComponent(csrfToken) %>" method="POST" class="inline-block">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <button type="submit" class="bg-emerald-600 text-white px-4 py-1.5 rounded-xl text-xs font-semibold hover:bg-emerald-700 transition">&#9679; Check In</button>
+          </form>
+        </div>
+      <% } %>
+
+      <!-- recent sessions table -->
+      <% if (recentAttendance && recentAttendance.length) { %>
+        <div class="overflow-x-auto">
+          <table class="w-full text-xs">
+            <thead>
+              <tr class="border-b text-slate-400">
+                <th class="pb-1.5 text-left font-medium">Date</th>
+                <th class="pb-1.5 text-left font-medium">In</th>
+                <th class="pb-1.5 text-left font-medium">Out</th>
+                <th class="pb-1.5 text-right font-medium">Duration</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% recentAttendance.forEach(function(r) { %>
+                <tr class="border-t">
+                  <td class="py-1.5 text-slate-600"><%= new Date(r.checkInAt).toLocaleDateString([],{weekday:'short',month:'short',day:'numeric'}) %></td>
+                  <td class="py-1.5 text-slate-600"><%= new Date(r.checkInAt).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}) %></td>
+                  <td class="py-1.5">
+                    <% if (r.checkOutAt) { %>
+                      <span class="text-slate-600"><%= new Date(r.checkOutAt).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}) %></span>
+                    <% } else { %>
+                      <span class="text-emerald-600 font-semibold">Active</span>
+                    <% } %>
+                  </td>
+                  <td class="py-1.5 text-right font-mono text-slate-600">
+                    <% if (r.durationMin != null) { %><%= fmtMin(r.durationMin) %><% } else { %>—<% } %>
+                  </td>
+                </tr>
+              <% }); %>
+            </tbody>
+          </table>
+        </div>
+      <% } else { %>
+        <p class="text-xs text-slate-400">No sessions recorded yet.</p>
+      <% } %>
+    </div>
+
+    <!-- Recently completed jobs -->
+    <div class="rounded-2xl bg-white p-5 shadow">
+      <h2 class="text-base font-semibold mb-3">Recently Completed</h2>
+      <% if (recentFabrication && recentFabrication.length) { %>
+        <div class="space-y-2">
+          <% recentFabrication.forEach(function(f) { %>
+            <a href="/fabrication/<%= f.id %>" class="block p-3 border border-slate-100 rounded-xl hover:bg-slate-50 transition">
+              <div class="font-medium text-sm text-slate-900 truncate"><%= f.name %></div>
+              <div class="text-xs text-slate-500 mt-0.5"><%= TYPE_LABELS[f.type] || f.type %>
+                <% if (f.completedAt) { %>&mdash; <%= new Date(f.completedAt).toLocaleDateString() %><% } %>
+              </div>
+            </a>
+          <% }); %>
+        </div>
+      <% } else { %>
+        <p class="text-sm text-slate-400">No completed jobs yet.</p>
+      <% } %>
+      <a href="/fabrication" class="mt-3 block text-xs text-blue-600 hover:underline">View all jobs &rarr;</a>
+    </div>
+
+    <!-- Subscribers card -->
+    <div class="rounded-2xl bg-white p-5 shadow">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="text-base font-semibold">Subscribers</h2>
+        <a href="/subscribers" class="text-xs text-blue-600 hover:underline">View all &rarr;</a>
+      </div>
+      <div class="grid grid-cols-2 gap-3 mb-4">
+        <div class="rounded-xl bg-emerald-50 border border-emerald-100 p-3 text-center">
+          <div class="text-2xl font-bold text-emerald-700"><%= subscriberStats.activeCount %></div>
+          <div class="text-xs text-emerald-600 mt-0.5">Active</div>
+        </div>
+        <div class="rounded-xl <%= subscriberStats.expiringCount > 0 ? 'bg-amber-50 border border-amber-200' : 'bg-slate-50 border border-slate-100' %> p-3 text-center">
+          <div class="text-2xl font-bold <%= subscriberStats.expiringCount > 0 ? 'text-amber-600' : 'text-slate-400' %>"><%= subscriberStats.expiringCount %></div>
+          <div class="text-xs <%= subscriberStats.expiringCount > 0 ? 'text-amber-500' : 'text-slate-400' %> mt-0.5">Expiring &le; 14d</div>
+        </div>
+      </div>
+      <% if (subscriberStats.recent && subscriberStats.recent.length) { %>
+        <div class="space-y-1.5">
+          <% subscriberStats.recent.forEach(function(sub) { %>
+            <a href="/subscribers/<%= sub.id %>" class="flex items-center gap-3 rounded-xl border border-slate-100 px-3 py-2 hover:bg-slate-50 transition">
+              <span class="h-2.5 w-2.5 rounded-full flex-shrink-0 bg-emerald-400"></span>
+              <div class="min-w-0 flex-1">
+                <div class="text-sm font-medium text-slate-900 truncate"><%= sub.name %></div>
+                <div class="text-xs text-slate-400 truncate"><%= sub.subscriptionType.name %></div>
+              </div>
+              <div class="text-xs text-slate-400 flex-shrink-0"><%= new Date(sub.endDate).toLocaleDateString() %></div>
+            </a>
+          <% }); %>
+        </div>
+      <% } else { %>
+        <p class="text-sm text-slate-400">No active subscribers yet.</p>
+      <% } %>
+      <a href="/subscribers/new" class="mt-4 block text-center text-xs bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700 transition">+ Add Subscriber</a>
+    </div>
+
+    <!-- Quick links -->
+    <div class="rounded-2xl bg-white p-5 shadow">
+      <h2 class="text-base font-semibold mb-3">Quick Links</h2>
+      <div class="grid grid-cols-2 gap-2">
+        <a href="/fabrication/new" class="p-3 bg-blue-50 border border-blue-100 rounded-xl hover:bg-blue-100 transition text-center"><div class="font-semibold text-blue-900 text-xs">New Job</div></a>
+        <a href="/work-updates" class="p-3 bg-purple-50 border border-purple-100 rounded-xl hover:bg-purple-100 transition text-center"><div class="font-semibold text-purple-900 text-xs">Team Updates</div></a>
+        <a href="/analytics" class="p-3 bg-emerald-50 border border-emerald-100 rounded-xl hover:bg-emerald-100 transition text-center"><div class="font-semibold text-emerald-900 text-xs">Analytics</div></a>
+        <a href="/funds" class="p-3 bg-amber-50 border border-amber-100 rounded-xl hover:bg-amber-100 transition text-center"><div class="font-semibold text-amber-900 text-xs">Funds</div></a>
+      </div>
+    </div>
+
+  </div><!-- end right col -->
+
+</div>
+<% } %>
+
+<!-- ── Elapsed timer script (shared between admin & worker views) ──────── -->
+<% if (todayAttendance) { %>
+<script>
+  (function() {
+    var ci = new Date('<%= todayAttendance.checkInAt.toISOString() %>');
+    function tick() {
+      var d = Math.floor((Date.now() - ci) / 1000);
+      var h = Math.floor(d / 3600), m = Math.floor((d % 3600) / 60), s = d % 60;
+      var el = document.getElementById('dashElapsed');
+      if (el) el.textContent = h + 'h ' + m + 'm ' + s + 's';
+    }
+    tick(); setInterval(tick, 1000);
+  })();
+</script>
+<% } %>
+
+<!-- ── Live active jobs polling (60s) ─────────────────────────────────── -->
+<script>
+  (function() {
+    var TYPE_LABELS = {
+      '3D_PRINTING':'3D Printing','FIBER_LASER':'Fiber Laser Cutting',
+      'CO2_LASER':'CO2 Laser Cutting','ELECTRONICS':'Electronics Build','3D_MODELLING':'3D Modelling'
+    };
+    setInterval(async function() {
+      try {
+        var r = await fetch('/api/active-jobs');
+        if (!r.ok) return;
+        var data = await r.json();
+        var container = document.getElementById('activeJobsContainer');
+        var tsEl = document.getElementById('jobBoardLastUpdate');
+        if (!container) return;
+        if (tsEl) tsEl.textContent = 'Updated ' + new Date(data.now).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+        if (data.jobs && data.jobs.length) {
+          container.innerHTML = '<div class="space-y-2">' + data.jobs.map(function(j) {
+            return '<a href="/fabrication/' + j.id + '" class="flex items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50/50 px-4 py-3 hover:bg-emerald-50 transition">' +
+              '<div><div class="font-medium text-sm text-slate-900">' + j.name + '</div>' +
+              '<div class="text-xs text-slate-500 mt-0.5">' + (TYPE_LABELS[j.type] || j.type) + ' &mdash; ' + j.author.name + '</div></div>' +
+              '<span class="ml-3 text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-semibold">ACTIVE</span></a>';
+          }).join('') + '</div>';
+        } else {
+          container.innerHTML = '<p class="text-sm text-slate-400">No active jobs right now.</p>';
+        }
+      } catch(e) {}
+    }, 60000);
+  })();
+</script>

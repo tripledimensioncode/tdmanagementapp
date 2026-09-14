@@ -1,0 +1,23 @@
+<div class="bg-white p-6 rounded shadow">
+  <div class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <h2 class="text-2xl font-semibold">Daily Self-Assessments</h2>
+    <% if (currentUser && currentUser.role === 'ADMIN') { %>
+      <a href="/assessments/admin/create" class="w-full rounded bg-blue-600 px-4 py-2 text-center text-white hover:bg-blue-700 sm:w-auto">Create Template</a>
+    <% } %>
+  </div>
+  <% if (templates && templates.length) { %>
+    <div class="space-y-3">
+      <% templates.forEach(t=>{ %>
+        <div class="flex flex-col gap-3 rounded border p-4 hover:bg-gray-50 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <div class="font-medium text-lg"><%= t.title %></div>
+            <div class="text-xs text-gray-500">Created <%= new Date(t.createdAt).toLocaleString() %></div>
+          </div>
+          <a href="/assessments/respond/<%= t.id %>" class="w-full rounded bg-green-600 px-4 py-2 text-center text-white hover:bg-green-700 sm:w-auto">Respond</a>
+        </div>
+      <% }) %>
+    </div>
+  <% } else { %>
+    <p class="text-gray-500">No assessments available yet.</p>
+  <% } %>
+</div>

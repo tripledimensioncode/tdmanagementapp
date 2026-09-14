@@ -1,0 +1,10 @@
+<% if (flash && (flash.error || flash.success)) { %>
+  <div class="mb-4">
+    <% if (flash.error) { %>
+      <div class="bg-red-100 text-red-800 px-4 py-3 rounded"> <%= flash.error %> </div>
+    <% } %>
+    <% if (flash.success) { %>
+      <div class="bg-green-100 text-green-800 px-4 py-3 rounded"> <%= flash.success %> </div>
+    <% } %>
+  </div>
+<% } %>

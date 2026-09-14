@@ -1,0 +1,196 @@
+<!-- Header row -->
+<div class="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+  <h1 class="text-2xl font-bold">Fabrication Jobs</h1>
+  <a href="/fabrication/new" class="w-full rounded-xl bg-blue-600 px-5 py-2 text-center text-sm font-semibold text-white hover:bg-blue-700 sm:w-auto">+ New Job</a>
+</div>
+
+<!-- ── Filter & Export Bar ─────────────────────────────────────────────── -->
+<div class="bg-white shadow rounded-2xl p-4 mb-6">
+  <form id="filterForm" method="GET" action="/fabrication" class="space-y-3">
+
+    <!-- Quick presets -->
+    <div class="flex flex-wrap gap-2 items-center">
+      <span class="text-xs font-semibold text-slate-500 uppercase tracking-wide mr-1">Quick:</span>
+      <% const presets = [
+        { key: '', label: 'All Time' },
+        { key: 'today', label: 'Today' },
+        { key: 'week', label: 'This Week' },
+        { key: 'month', label: 'This Month' },
+        { key: 'last30', label: 'Last 30 Days' }
+      ]; %>
+      <% presets.forEach(function(p) { %>
+        <a href="?quick=<%= p.key %>&status=<%= filters.status %>&type=<%= filters.type %>"
+           class="px-3 py-1 rounded-full text-xs border transition
+             <%= filters.quick === p.key ? 'bg-blue-600 text-white border-blue-600' : 'border-slate-200 text-slate-600 hover:bg-slate-50' %>">
+          <%= p.label %>
+        </a>
+      <% }); %>
+    </div>
+
+    <!-- Filter inputs row -->
+    <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+
+      <!-- Status -->
+      <div>
+        <label class="block text-xs font-medium text-slate-500 mb-1">Status</label>
+        <select name="status" class="w-full border rounded-xl px-3 py-2 text-sm bg-white">
+          <option value="">All Statuses</option>
+          <option value="ACTIVE"   <%= filters.status === 'ACTIVE'   ? 'selected' : '' %>>Active</option>
+          <option value="COMPLETE" <%= filters.status === 'COMPLETE' ? 'selected' : '' %>>Complete</option>
+        </select>
+      </div>
+
+      <!-- Type -->
+      <div>
+        <label class="block text-xs font-medium text-slate-500 mb-1">Service Type</label>
+        <select name="type" class="w-full border rounded-xl px-3 py-2 text-sm bg-white">
+          <option value="">All Types</option>
+          <% FABRICATION_TYPES.forEach(function(t) { %>
+            <option value="<%= t.value %>" <%= filters.type === t.value ? 'selected' : '' %>><%= t.label %></option>
+          <% }); %>
+        </select>
+      </div>
+
+      <!-- Date From -->
+      <div>
+        <label class="block text-xs font-medium text-slate-500 mb-1">Date From</label>
+        <input type="date" name="dateFrom" value="<%= filters.dateFrom %>" class="w-full border rounded-xl px-3 py-2 text-sm">
+      </div>
+
+      <!-- Date To -->
+      <div>
+        <label class="block text-xs font-medium text-slate-500 mb-1">Date To</label>
+        <input type="date" name="dateTo" value="<%= filters.dateTo %>" class="w-full border rounded-xl px-3 py-2 text-sm">
+      </div>
+
+      <!-- Action buttons -->
+      <div class="flex items-end gap-2">
+        <button type="submit" class="flex-1 bg-slate-800 text-white rounded-xl px-3 py-2 text-sm font-semibold hover:bg-black transition">
+          Filter
+        </button>
+        <a href="/fabrication" class="flex-1 border rounded-xl px-3 py-2 text-sm text-slate-600 hover:bg-slate-50 transition text-center">
+          No filter
+        </a>
+      </div>
+    </div>
+  </form>
+
+  <!-- Export row — mirrors current filters into export URL -->
+  <div class="mt-3 flex flex-wrap items-center gap-2 border-t pt-3">
+    <span class="text-xs font-semibold text-slate-500 uppercase tracking-wide">Export <%= items.length %> result<%= items.length !== 1 ? 's' : '' %>:</span>
+    <a id="exportCsv"  href="#" class="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl border border-emerald-300 bg-emerald-50 text-emerald-800 text-xs font-semibold hover:bg-emerald-100 transition">
+      ↓ CSV
+    </a>
+    <a id="exportXlsx" href="#" class="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl border border-blue-300 bg-blue-50 text-blue-800 text-xs font-semibold hover:bg-blue-100 transition">
+      ↓ Excel (.xlsx)
+    </a>
+  </div>
+</div>
+
+<!-- ── Jobs Table ──────────────────────────────────────────────────────── -->
+<div class="bg-white shadow rounded-2xl overflow-hidden">
+
+  <!-- Result count -->
+  <div class="px-4 py-3 border-b bg-slate-50 flex items-center justify-between">
+    <span class="text-sm text-slate-500">
+      <strong class="text-slate-800"><%= items.length %></strong> job<%= items.length !== 1 ? 's' : '' %>
+      <% if (filters.status || filters.type || filters.dateFrom || filters.dateTo) { %>
+        <span class="ml-1 text-xs text-blue-600">(filtered)</span>
+      <% } %>
+    </span>
+    <% if (filters.status || filters.type || filters.dateFrom || filters.dateTo || filters.quick) { %>
+      <a href="/fabrication" class="text-xs text-red-500 hover:underline">Clear filters</a>
+    <% } %>
+  </div>
+
+  <div class="responsive-table">
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="border-b bg-slate-50">
+          <th class="p-3 text-left">Status</th>
+          <th class="p-3 text-left">Type</th>
+          <th class="p-3 text-left">Name</th>
+          <th class="p-3 text-left">Date</th>
+          <th class="p-3 text-left">Duration</th>
+          <th class="p-3 text-left">Cost</th>
+          <th class="p-3 text-left">Worker</th>
+          <th class="p-3 text-left">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% if (items && items.length) { %>
+          <% items.forEach(function(item) { %>
+            <tr class="border-t hover:bg-slate-50 <%= item.status === 'ACTIVE' ? 'bg-emerald-50/40' : '' %>">
+              <td class="p-3">
+                <span class="inline-block px-2 py-0.5 rounded-full text-xs font-semibold
+                  <%= item.status === 'ACTIVE' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500' %>">
+                  <%= item.status %>
+                </span>
+              </td>
+              <td class="p-3 whitespace-nowrap">
+                <span class="text-xs font-medium text-slate-600"><%= typeLabel(item.type) %></span>
+              </td>
+              <td class="p-3 font-medium"><%= item.name %></td>
+              <td class="p-3 whitespace-nowrap"><%= item.date ? item.date.toISOString().split('T')[0] : '' %></td>
+              <td class="p-3 whitespace-nowrap">
+                <% if (item.actualMinutes != null) { %>
+                  <%= Math.floor(item.actualMinutes / 60) %>h <%= item.actualMinutes % 60 %>m
+                  <% if (item.estimatedMinutes) { %>
+                    <span class="text-xs text-slate-400">(est <%= item.estimatedMinutes %>m)</span>
+                  <% } %>
+                <% } else if (item.estimatedMinutes) { %>
+                  <span class="text-xs text-slate-400">est <%= item.estimatedMinutes %>m</span>
+                <% } else { %>
+                  &mdash;
+                <% } %>
+              </td>
+              <td class="p-3">
+                <%
+                  const is3DPrint = item.type === '3D_PRINTING';
+                  const additionalCost = Number(item.cost || 0);
+                  const rate = Number(item.costPerGram || 0);
+                  const totalMass = (item.files || []).reduce((sum, f) => sum + Number(f.massGrams || 0), 0);
+                  let displayCost = '&mdash;';
+                  if (is3DPrint && rate > 0) {
+                    displayCost = `&#8373;${((totalMass * rate) + additionalCost).toFixed(2)}`;
+                  } else if (item.cost != null) {
+                    displayCost = `&#8373;${additionalCost.toFixed(2)}`;
+                  }
+                %>
+                <%- displayCost %>
+              </td>
+              <td class="p-3"><%= item.author.name %></td>
+              <td class="p-3 whitespace-nowrap">
+                <a href="/fabrication/<%= item.id %>" class="text-blue-600 hover:underline text-xs">View</a>
+              </td>
+            </tr>
+          <% }); %>
+        <% } else { %>
+          <tr><td colspan="8" class="p-10 text-slate-400 text-center">No jobs match the selected filters.</td></tr>
+        <% } %>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+  // Wire export buttons to mirror the current filter state
+  (function() {
+    var form = document.getElementById('filterForm');
+    function buildExportUrl(format) {
+      var data = new FormData(form);
+      var params = new URLSearchParams();
+      data.forEach(function(v, k) { if (v) params.set(k, v); });
+      params.set('format', format);
+      return '/fabrication/export?' + params.toString();
+    }
+    function update() {
+      var csvBtn  = document.getElementById('exportCsv');
+      var xlsxBtn = document.getElementById('exportXlsx');
+      if (csvBtn)  csvBtn.href  = buildExportUrl('csv');
+      if (xlsxBtn) xlsxBtn.href = buildExportUrl('xlsx');
+    }
+    form.addEventListener('change', update);
+    update();
+  })();
+</script>

@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>TRIPLE DIMENSION</title>
+    <link rel="icon" type="image/svg+xml" href="/public/images/favicon.svg" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/public/css/style.css" />
+  </head>
+  <body class="bg-slate-100 min-h-screen text-slate-900 overflow-x-hidden">
+    <%- include('partials/navbar') %>
+    <main class="pt-36 pb-10">
+      <div class="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
+        <%- include('partials/flash-messages') %>
+        <%- body %>
+      </div>
+    </main>
+    <%- include('partials/footer') %>
+    <script src="/public/js/app.js"></script>
+  </body>
+</html>

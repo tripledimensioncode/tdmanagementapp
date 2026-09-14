@@ -1,0 +1,343 @@
+// Prisma schema for TRIPLE DIMENSION intranet v2
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// Using plain strings instead of enums for SQLite compatibility
+
+model User {
+  id        Int      @id @default(autoincrement())
+  name      String
+  email     String   @unique
+  password  String
+  role      String   @default("WORKER")
+  printCostPerGram Decimal? @default(0.15) @db.Decimal(12, 2)
+  isDeleted Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  // relations
+  inventoryUpdates InventoryItem[] @relation("Updater")
+  assessments AssessmentResponse[]
+  workUpdates WorkUpdate[]
+  fabrications Fabrication[]
+  receivedPayments FabricationPayment[] @relation("PaymentReceiver")
+  subscriptionTypesCreated SubscriptionType[] @relation("SubscriptionTypeCreator")
+  subscribersCreated Subscriber[] @relation("SubscriberCreator")
+  subscriberActivitiesCreated SubscriberActivity[] @relation("SubscriberActivityCreator")
+  fundTransactions FundTransaction[] @relation("FundTransactionCreator")
+  fundingRequests FundingRequest[] @relation("FundingRequestRequester")
+  reviewedFundingRequests FundingRequest[] @relation("FundingRequestReviewer")
+  accountCreationsMade AccountCreationLog[] @relation("AccountCreator")
+  accountCreationsReceived AccountCreationLog[] @relation("AccountCreatedUser")
+  attendanceRecords AttendanceRecord[]
+  dailyLogs DailyLog[]
+  resetRequests  SystemResetRequest[] @relation("ResetRequester")
+  resetApprovals SystemResetApproval[]
+  attendedCustomers Customer[]
+}
+
+model InventoryItem {
+  id           Int                  @id @default(autoincrement())
+  name         String
+  quantity     Int                  @default(0)
+  location     String?
+  description  String?
+  imagePath    String?
+  lastUpdated  DateTime             @default(now())
+  updatedById  Int?
+  updatedBy    User?                @relation(name: "Updater", fields: [updatedById], references: [id])
+  // Classification fields
+  itemType     String?              // TOOL | PART | MACHINE | MATERIAL | CONSUMABLE
+  categoryId   Int?
+  category     InventoryCategory?   @relation(fields: [categoryId], references: [id])
+  departmentId Int?
+  department   InventoryDepartment? @relation(fields: [departmentId], references: [id])
+}
+
+// Admin-managed item-type categories (Tool, Part, Machine, Material, Consumable …)
+model InventoryCategory {
+  id        Int             @id @default(autoincrement())
+  name      String          @unique
+  createdAt DateTime        @default(now())
+  items     InventoryItem[]
+}
+
+// Admin-managed workshop departments (3D Printing, Metal Work, Wood Work, Electronics …)
+model InventoryDepartment {
+  id        Int             @id @default(autoincrement())
+  name      String          @unique
+  createdAt DateTime        @default(now())
+  items     InventoryItem[]
+}
+
+
+model AssessmentTemplate {
+  id        Int      @id @default(autoincrement())
+  title     String
+  questions String
+  createdAt DateTime @default(now())
+  responses AssessmentResponse[]
+}
+
+model AssessmentResponse {
+  id           Int      @id @default(autoincrement())
+  templateId   Int
+  template     AssessmentTemplate @relation(fields: [templateId], references: [id])
+  userId       Int
+  user         User     @relation(fields: [userId], references: [id])
+  answers      String
+  date         DateTime @default(now())
+}
+
+model WorkUpdate {
+  id        Int       @id @default(autoincrement())
+  title     String
+  content   String
+  status    String @default("PLANNING")
+  authorId  Int
+  author    User      @relation(fields: [authorId], references: [id])
+  ideaId    Int?
+  createdAt DateTime  @default(now())
+}
+
+// Records of fabrication work done by users
+model Fabrication {
+  id               Int      @id @default(autoincrement())
+  type             String   // 3D_PRINTING | FIBER_LASER | CO2_LASER | ELECTRONICS | 3D_MODELLING
+  name             String
+  date             DateTime
+  description      String?
+  cost             Decimal? @db.Decimal(12, 2)
+  costPerGram      Decimal? @db.Decimal(12, 2)
+  filePath         String?
+  status           String   @default("ACTIVE") // ACTIVE | COMPLETE
+  startedAt        DateTime?
+  completedAt      DateTime?
+  estimatedMinutes Int?
+  actualMinutes    Int?
+  printCategory    String?  // IN_HOUSE | PAID (only for 3D_PRINTING)
+  projectName      String?
+  authorId         Int
+  author           User     @relation(fields: [authorId], references: [id])
+  files            FabricationFile[]
+  lineItems        FabricationLineItem[]
+  payments         FabricationPayment[]
+  createdAt        DateTime @default(now())
+}
+
+// Receiving a payment is separate from invoicing: jobs may be paid in several
+// instalments and every payment must have its own receipt.
+model FabricationPayment {
+  id             Int         @id @default(autoincrement())
+  fabricationId  Int
+  fabrication    Fabrication @relation(fields: [fabricationId], references: [id], onDelete: Cascade)
+  amount         Decimal     @db.Decimal(12, 2)
+  method         String
+  reference      String?
+  notes          String?
+  paidAt         DateTime    @default(now())
+  receivedById   Int
+  receivedBy     User        @relation("PaymentReceiver", fields: [receivedById], references: [id])
+  createdAt      DateTime    @default(now())
+}
+
+model FabricationFile {
+  id            Int         @id @default(autoincrement())
+  fabricationId Int
+  fabrication   Fabrication @relation(fields: [fabricationId], references: [id], onDelete: Cascade)
+  path          String
+  originalName  String
+  massGrams     Float?
+  createdAt     DateTime    @default(now())
+}
+
+model FabricationLineItem {
+  id            Int         @id @default(autoincrement())
+  fabricationId Int
+  fabrication   Fabrication @relation(fields: [fabricationId], references: [id], onDelete: Cascade)
+  label         String
+  quantity      Int         @default(1)
+  cost          Decimal     @default(0.0) @db.Decimal(12, 2)
+  createdAt     DateTime    @default(now())
+}
+
+// Subscription offerings managed by admins
+model SubscriptionType {
+  id              Int      @id @default(autoincrement())
+  name            String
+  price           Decimal  @db.Decimal(12, 2)
+  durationDays    Int
+  allowedServices String
+  color           String
+  createdById     Int
+  createdBy       User     @relation("SubscriptionTypeCreator", fields: [createdById], references: [id])
+  createdAt       DateTime @default(now())
+  subscribers     Subscriber[]
+}
+
+model Subscriber {
+  id                 Int      @id @default(autoincrement())
+  code               String   @unique
+  name               String
+  profession         String?
+  isStudent          Boolean  @default(false)
+  studentId          String?
+  phonePrimary       String?
+  phoneSecondary     String?
+  subscriptionTypeId Int
+  subscriptionType   SubscriptionType @relation(fields: [subscriptionTypeId], references: [id])
+  idCardImagePath    String?
+  startDate          DateTime
+  endDate            DateTime
+  notes              String?
+  status             String   @default("ACTIVE") // ACTIVE | EXPIRED | SUSPENDED
+  createdById        Int
+  createdBy          User     @relation("SubscriberCreator", fields: [createdById], references: [id])
+  createdAt          DateTime @default(now())
+  activities         SubscriberActivity[]
+}
+
+model SubscriberActivity {
+  id              Int      @id @default(autoincrement())
+  subscriberId    Int
+  subscriber      Subscriber @relation(fields: [subscriberId], references: [id], onDelete: Cascade)
+  actionType      String
+  description     String?
+  serviceDate     DateTime
+  cost            Decimal? @db.Decimal(12, 2)
+  attachmentPath  String?
+  attachmentName  String?
+  createdById     Int
+  createdBy       User     @relation("SubscriberActivityCreator", fields: [createdById], references: [id])
+  createdAt       DateTime @default(now())
+}
+
+model FundTransaction {
+  id          Int      @id @default(autoincrement())
+  type        String   // DEPOSIT | WITHDRAWAL
+  amount      Decimal  @db.Decimal(12, 2)
+  title       String
+  description String?
+  reference   String?
+  date        DateTime
+  createdById Int
+  createdBy   User     @relation("FundTransactionCreator", fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
+}
+
+model FundingRequest {
+  id              Int      @id @default(autoincrement())
+  title           String
+  requestedAmount Decimal  @db.Decimal(12, 2)
+  purpose         String
+  details         String?
+  status          String   @default("PENDING") // PENDING | APPROVED | DECLINED
+  adminComment    String?
+  requestedById   Int
+  requestedBy     User     @relation("FundingRequestRequester", fields: [requestedById], references: [id])
+  reviewedById    Int?
+  reviewedBy      User?    @relation("FundingRequestReviewer", fields: [reviewedById], references: [id])
+  reviewedAt      DateTime?
+  createdAt       DateTime @default(now())
+}
+
+model AccountCreationLog {
+  id               Int      @id @default(autoincrement())
+  createdUserId    Int
+  createdUser      User     @relation("AccountCreatedUser", fields: [createdUserId], references: [id], onDelete: Cascade)
+  createdById      Int
+  createdBy        User     @relation("AccountCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  createdEmail     String
+  createdRole      String
+  creatorIp        String?
+  creatorUserAgent String?
+  createdAt        DateTime @default(now())
+}
+
+// Worker clock-in / clock-out records
+model AttendanceRecord {
+  id          Int       @id @default(autoincrement())
+  userId      Int
+  user        User      @relation(fields: [userId], references: [id])
+  checkInAt   DateTime
+  checkOutAt  DateTime?
+  notes       String?
+  durationMin Int?
+  createdAt   DateTime  @default(now())
+}
+
+// Worker's daily work log
+model DailyLog {
+  id        Int        @id @default(autoincrement())
+  userId    Int
+  user      User       @relation(fields: [userId], references: [id])
+  date      DateTime
+  summary   String
+  blockers  String?
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  tasks     WorkTask[]
+}
+
+// Personal task items linked to a daily log
+model WorkTask {
+  id           Int       @id @default(autoincrement())
+  dailyLogId   Int
+  dailyLog     DailyLog  @relation(fields: [dailyLogId], references: [id], onDelete: Cascade)
+  title        String
+  estimatedMin Int?
+  actualMin    Int?
+  status       String    @default("TODO") // TODO | IN_PROGRESS | DONE
+  startedAt    DateTime?
+  completedAt  DateTime?
+  createdAt    DateTime  @default(now())
+}
+
+model SystemResetRequest {
+  id            Int                   @id @default(autoincrement())
+  requestedById Int
+  requestedBy   User                  @relation(name: "ResetRequester", fields: [requestedById], references: [id], onDelete: Cascade)
+  createdAt     DateTime              @default(now())
+  status        String                @default("PENDING") // PENDING | COMPLETED | EXPIRED
+  approvals     SystemResetApproval[]
+}
+
+model SystemResetApproval {
+  id        Int                @id @default(autoincrement())
+  requestId Int
+  request   SystemResetRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  adminId   Int
+  admin     User               @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  createdAt DateTime           @default(now())
+
+  @@unique([requestId, adminId])
+}
+
+model Customer {
+  id             Int       @id @default(autoincrement())
+  name           String
+  location       String?
+  phone          String?
+  email          String?
+  lastCalled     DateTime?
+  isPotential    Boolean   @default(false)
+  lastJobDetails String?
+  comment        String?
+  attendedById   Int?
+  attendedBy     User?     @relation(fields: [attendedById], references: [id])
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+}
+
+model Service {
+  id        Int      @id @default(autoincrement())
+  value     String   @unique
+  label     String
+  createdAt DateTime @default(now())
+}

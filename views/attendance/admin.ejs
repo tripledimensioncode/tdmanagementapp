@@ -1,0 +1,74 @@
+<div class="max-w-5xl mx-auto">
+  <h1 class="text-2xl font-bold mb-6">Attendance — Admin View</h1>
+
+  <!-- Filter form -->
+  <div class="bg-white rounded-2xl shadow p-5 mb-6">
+    <form method="GET" action="/attendance/admin" class="flex flex-wrap gap-3 items-end">
+      <div>
+        <label class="block text-xs font-medium text-slate-600 mb-1">From</label>
+        <input type="date" name="from" value="<%= from %>" class="border rounded px-2 py-1.5 text-sm">
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-slate-600 mb-1">To</label>
+        <input type="date" name="to" value="<%= to %>" class="border rounded px-2 py-1.5 text-sm">
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-slate-600 mb-1">Worker</label>
+        <select name="userId" class="border rounded px-2 py-1.5 text-sm">
+          <option value="">All Workers</option>
+          <% workers.forEach(w => { %>
+            <option value="<%= w.id %>" <%= filterUserId == w.id ? 'selected' : '' %>><%= w.name %></option>
+          <% }) %>
+        </select>
+      </div>
+      <button type="submit" class="bg-blue-600 text-white px-4 py-1.5 rounded-xl text-sm hover:bg-blue-700">Filter</button>
+      <a href="/attendance/admin" class="border px-4 py-1.5 rounded-xl text-sm hover:bg-slate-50">No filter</a>
+    </form>
+  </div>
+
+  <div class="bg-white rounded-2xl shadow p-5">
+    <h2 class="text-lg font-semibold mb-4">Records (<%= records.length %>)</h2>
+    <% if (records && records.length) { %>
+      <div class="responsive-table">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="border-b bg-slate-50">
+              <th class="p-2 text-left">Worker</th>
+              <th class="p-2 text-left">Date</th>
+              <th class="p-2 text-left">Check In</th>
+              <th class="p-2 text-left">Check Out</th>
+              <th class="p-2 text-left">Duration</th>
+              <th class="p-2 text-left">Notes</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% records.forEach(r => { %>
+              <tr class="border-t hover:bg-slate-50">
+                <td class="p-2 font-medium"><%= r.user.name %></td>
+                <td class="p-2"><%= new Date(r.checkInAt).toLocaleDateString() %></td>
+                <td class="p-2"><%= new Date(r.checkInAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) %></td>
+                <td class="p-2">
+                  <% if (r.checkOutAt) { %>
+                    <%= new Date(r.checkOutAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) %>
+                  <% } else { %>
+                    <span class="text-emerald-600 font-medium">Active</span>
+                  <% } %>
+                </td>
+                <td class="p-2">
+                  <% if (r.durationMin != null) { %>
+                    <%= Math.floor(r.durationMin / 60) %>h <%= r.durationMin % 60 %>m
+                  <% } else { %>
+                    —
+                  <% } %>
+                </td>
+                <td class="p-2 text-slate-500"><%= r.notes || '—' %></td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    <% } else { %>
+      <p class="text-slate-500 text-sm">No records found for the selected filters.</p>
+    <% } %>
+  </div>
+</div>

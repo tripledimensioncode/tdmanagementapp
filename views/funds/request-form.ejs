@@ -1,0 +1,38 @@
+<div class="max-w-2xl mx-auto bg-white p-6 rounded shadow">
+  <h2 class="text-2xl font-semibold mb-1">Request Funding</h2>
+  <p class="text-sm text-gray-600 mb-6">Submit a funding request for admin approval.</p>
+
+  <form action="/funds/requests/new" method="POST" class="space-y-4">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+    <div>
+      <label class="block text-sm font-medium mb-1">Request Title</label>
+      <input name="title" class="w-full border rounded px-3 py-2" placeholder="e.g. Purchase acrylic sheets" required />
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+      <div>
+        <label class="block text-sm font-medium mb-1">Requested Amount</label>
+        <input type="number" step="0.01" min="0.01" name="requestedAmount" class="w-full border rounded px-3 py-2" placeholder="0.00" required />
+      </div>
+      <div>
+        <label class="block text-sm font-medium mb-1">Purpose</label>
+        <input name="purpose" class="w-full border rounded px-3 py-2" placeholder="What the funds are for" required />
+      </div>
+    </div>
+
+    <div>
+      <label class="block text-sm font-medium mb-1">Additional Details (optional)</label>
+      <textarea name="details" rows="5" class="w-full border rounded px-3 py-2" placeholder="Scope, expected outcome, timeline, supplier details, etc."></textarea>
+    </div>
+
+    <div class="bg-amber-50 border border-amber-200 rounded px-3 py-2 text-sm text-amber-900">
+      Requests stay in <strong>Pending</strong> until an admin approves or declines them.
+    </div>
+
+    <div class="flex gap-3 pt-2">
+      <button type="submit" class="bg-blue-600 text-white px-5 py-2 rounded hover:bg-blue-700 font-medium">Submit Request</button>
+      <a href="/funds" class="border border-gray-300 px-5 py-2 rounded hover:bg-gray-50">Cancel</a>
+    </div>
+  </form>
+</div>

@@ -1,0 +1,224 @@
+<div class="flex flex-wrap items-center justify-between gap-3 mb-5">
+  <div>
+    <h1 class="text-2xl font-bold">Funds</h1>
+    <p class="text-sm text-gray-600">Cash deposits, withdrawals, funding requests, and cashbook reporting.</p>
+  </div>
+  <div class="flex flex-wrap gap-2">
+    <a href="/funds/transactions/new?type=DEPOSIT" class="bg-green-600 text-white px-3 py-2 rounded hover:bg-green-700 text-sm">Record Deposit</a>
+    <a href="/funds/transactions/new?type=WITHDRAWAL" class="bg-red-600 text-white px-3 py-2 rounded hover:bg-red-700 text-sm">Record Withdrawal</a>
+    <a href="/funds/requests/new" class="bg-blue-600 text-white px-3 py-2 rounded hover:bg-blue-700 text-sm">Request Funding</a>
+  </div>
+</div>
+
+<div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3 mb-6">
+  <div class="bg-white border rounded p-4">
+    <div class="text-xs text-gray-500 uppercase">Total Deposits</div>
+    <div class="text-xl font-semibold text-green-700 mt-1">₵<%= Number(summary.totalDeposits).toFixed(2) %></div>
+  </div>
+  <div class="bg-white border rounded p-4">
+    <div class="text-xs text-gray-500 uppercase">Total Withdrawals</div>
+    <div class="text-xl font-semibold text-red-700 mt-1">₵<%= Number(summary.totalWithdrawals).toFixed(2) %></div>
+  </div>
+  <div class="bg-white border rounded p-4">
+    <div class="text-xs text-gray-500 uppercase">Net Balance</div>
+    <div class="text-xl font-semibold text-slate-800 mt-1">₵<%= Number(summary.netBalance).toFixed(2) %></div>
+  </div>
+  <div class="bg-white border rounded p-4">
+    <div class="text-xs text-gray-500 uppercase">Pending Requests</div>
+    <div class="text-xl font-semibold text-amber-700 mt-1"><%= summary.pendingFundingCount %></div>
+  </div>
+  <div class="bg-white border rounded p-4">
+    <div class="text-xs text-gray-500 uppercase">Pending Amount</div>
+    <div class="text-xl font-semibold text-amber-700 mt-1">₵<%= Number(summary.pendingAmount).toFixed(2) %></div>
+  </div>
+</div>
+
+<!-- ── Filter & Export Bar ─────────────────────────────────────────────── -->
+<div class="bg-white shadow rounded-2xl p-4 mb-6">
+  <form id="filterForm" method="GET" action="/funds" class="space-y-3">
+    <!-- Filter inputs row -->
+    <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+      <!-- Search Query -->
+      <div class="lg:col-span-1">
+        <label class="block text-xs font-medium text-slate-500 mb-1">Search</label>
+        <input type="text" name="q" value="<%= filters.q %>" placeholder="Title, description, ref..." class="w-full border rounded-xl px-3 py-2 text-sm bg-white">
+      </div>
+
+      <!-- Type -->
+      <div>
+        <label class="block text-xs font-medium text-slate-500 mb-1">Type</label>
+        <select name="type" class="w-full border rounded-xl px-3 py-2 text-sm bg-white">
+          <option value="">All Types</option>
+          <option value="DEPOSIT"   <%= filters.type === 'DEPOSIT'   ? 'selected' : '' %>>Deposit</option>
+          <option value="WITHDRAWAL" <%= filters.type === 'WITHDRAWAL' ? 'selected' : '' %>>Withdrawal</option>
+        </select>
+      </div>
+
+      <!-- Date From -->
+      <div>
+        <label class="block text-xs font-medium text-slate-500 mb-1">Date From</label>
+        <input type="date" name="from" value="<%= filters.from %>" class="w-full border rounded-xl px-3 py-2 text-sm">
+      </div>
+
+      <!-- Date To -->
+      <div>
+        <label class="block text-xs font-medium text-slate-500 mb-1">Date To</label>
+        <input type="date" name="to" value="<%= filters.to %>" class="w-full border rounded-xl px-3 py-2 text-sm">
+      </div>
+
+      <!-- Action buttons -->
+      <div class="flex items-end gap-2">
+        <button type="submit" class="flex-1 bg-slate-800 text-white rounded-xl px-3 py-2 text-sm font-semibold hover:bg-black transition">
+          Filter
+        </button>
+        <a href="/funds" class="flex-1 border rounded-xl px-3 py-2 text-sm text-slate-600 hover:bg-slate-50 transition text-center">
+          No filter
+        </a>
+      </div>
+    </div>
+  </form>
+
+  <!-- Export row — mirrors current filters into export URL -->
+  <div class="mt-3 flex flex-wrap items-center gap-2 border-t pt-3">
+    <span class="text-xs font-semibold text-slate-500 uppercase tracking-wide">Export <%= transactions.length %> result<%= transactions.length !== 1 ? 's' : '' %>:</span>
+    <a id="exportCsv"  href="#" class="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl border border-emerald-300 bg-emerald-50 text-emerald-800 text-xs font-semibold hover:bg-emerald-100 transition">
+      ↓ CSV
+    </a>
+    <a id="exportXlsx" href="#" class="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl border border-blue-300 bg-blue-50 text-blue-800 text-xs font-semibold hover:bg-blue-100 transition">
+      ↓ Excel (.xlsx)
+    </a>
+  </div>
+</div>
+
+<div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+  <div class="bg-white shadow rounded p-4">
+    <h2 class="text-lg font-semibold mb-3">Cash Transactions</h2>
+    <div class="responsive-table">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="bg-gray-50 border-b">
+            <th class="p-2 text-left">Date</th>
+            <th class="p-2 text-left">Type</th>
+            <th class="p-2 text-left">Title</th>
+            <th class="p-2 text-left">Reference</th>
+            <th class="p-2 text-left">Recorded By</th>
+            <th class="p-2 text-left">Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% if (transactions && transactions.length) { %>
+            <% transactions.forEach(item => { %>
+              <tr class="border-b hover:bg-gray-50">
+                <td class="p-2"><%= item.date ? item.date.toISOString().split('T')[0] : '' %></td>
+                <td class="p-2">
+                  <% if (item.type === 'DEPOSIT') { %>
+                    <span class="px-2 py-1 text-xs rounded bg-green-100 text-green-800">DEPOSIT</span>
+                  <% } else { %>
+                    <span class="px-2 py-1 text-xs rounded bg-red-100 text-red-800">WITHDRAWAL</span>
+                  <% } %>
+                </td>
+                <td class="p-2">
+                  <div class="font-medium"><%= item.title %></div>
+                  <div class="text-xs text-gray-500"><%= item.description || '-' %></div>
+                </td>
+                <td class="p-2 text-xs text-gray-700"><%= item.reference || '-' %></td>
+                <td class="p-2 text-xs text-gray-700"><%= item.createdBy ? item.createdBy.name : '-' %></td>
+                <td class="p-2 font-semibold <%= item.type === 'DEPOSIT' ? 'text-green-700' : 'text-red-700' %>">
+                  ₵<%= Number(item.amount).toFixed(2) %>
+                </td>
+              </tr>
+            <% }) %>
+          <% } else { %>
+            <tr><td colspan="6" class="p-3 text-gray-500">No transactions match the selected filters.</td></tr>
+          <% } %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="bg-white shadow rounded p-4">
+    <h2 class="text-lg font-semibold mb-3">Funding Requests</h2>
+    <div class="space-y-3">
+      <% if (fundingRequests && fundingRequests.length) { %>
+        <% fundingRequests.forEach(item => { %>
+          <div class="border rounded p-3">
+            <div class="flex flex-wrap items-start justify-between gap-2">
+              <div>
+                <div class="font-semibold"><%= item.title %></div>
+                <div class="text-xs text-gray-500">
+                  Requested by <strong><%= item.requestedBy ? item.requestedBy.name : 'Unknown' %></strong> on <%= item.createdAt ? item.createdAt.toISOString().split('T')[0] : '' %>
+                </div>
+              </div>
+              <div class="text-right">
+                <% if (item.status === 'APPROVED') { %>
+                  <span class="px-2 py-1 text-xs rounded bg-green-100 text-green-800">APPROVED</span>
+                <% } else if (item.status === 'DECLINED') { %>
+                  <span class="px-2 py-1 text-xs rounded bg-red-100 text-red-800">DECLINED</span>
+                <% } else { %>
+                  <span class="px-2 py-1 text-xs rounded bg-amber-100 text-amber-800">PENDING</span>
+                <% } %>
+                <div class="text-sm font-semibold mt-1">₵<%= Number(item.requestedAmount).toFixed(2) %></div>
+              </div>
+            </div>
+            <div class="text-sm mt-2"><strong>Purpose:</strong> <%= item.purpose %></div>
+            <% if (item.details) { %>
+              <div class="text-sm text-gray-700 mt-1"><%= item.details %></div>
+            <% } %>
+            <% if (item.adminComment) { %>
+              <div class="text-xs mt-2 px-2 py-2 rounded bg-gray-100 text-gray-700">
+                <strong>Admin note:</strong> <%= item.adminComment %>
+              </div>
+            <% } %>
+            <% if (item.reviewedBy || item.reviewedAt) { %>
+              <div class="text-xs text-gray-500 mt-2">
+                Reviewed by <strong><%= item.reviewedBy ? item.reviewedBy.name : 'Admin' %></strong>
+                <% if (item.reviewedAt) { %>
+                  on <%= item.reviewedAt.toISOString().split('T')[0] %>
+                <% } %>
+              </div>
+            <% } %>
+
+            <% if (isAdminUser && item.status === 'PENDING') { %>
+              <form action="/funds/requests/<%= item.id %>/review" method="POST" class="mt-3 grid grid-cols-1 md:grid-cols-3 gap-2 items-end">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                <div class="md:col-span-2">
+                  <label class="text-xs text-gray-600 block mb-1">Admin Comment (optional)</label>
+                  <input name="adminComment" class="w-full border rounded px-2 py-1 text-sm" placeholder="Reason / instruction" />
+                </div>
+                <div class="flex flex-col gap-2 sm:flex-row">
+                  <button type="submit" name="decision" value="APPROVED" class="flex-1 bg-green-600 text-white text-sm px-3 py-1.5 rounded hover:bg-green-700">Approve</button>
+                  <button type="submit" name="decision" value="DECLINED" class="flex-1 bg-red-600 text-white text-sm px-3 py-1.5 rounded hover:bg-red-700">Decline</button>
+                </div>
+              </form>
+            <% } %>
+          </div>
+        <% }) %>
+      <% } else { %>
+        <div class="text-gray-500 text-sm">No funding requests yet.</div>
+      <% } %>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Wire export buttons to mirror the current filter state
+  (function() {
+    var form = document.getElementById('filterForm');
+    function buildExportUrl(format) {
+      var data = new FormData(form);
+      var params = new URLSearchParams();
+      data.forEach(function(v, k) { if (v) params.set(k, v); });
+      params.set('format', format);
+      return '/funds/export?' + params.toString();
+    }
+    function update() {
+      var csvBtn  = document.getElementById('exportCsv');
+      var xlsxBtn = document.getElementById('exportXlsx');
+      if (csvBtn)  csvBtn.href  = buildExportUrl('csv');
+      if (xlsxBtn) xlsxBtn.href = buildExportUrl('xlsx');
+    }
+    form.addEventListener('change', update);
+    form.addEventListener('input', update);
+    update();
+  })();
+</script>

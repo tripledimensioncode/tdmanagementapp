@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="TRIPLE DIMENSION logo">
+  <g fill="#111111">
+    <path d="M0 -64 L64 0 L24 0 L24 96 L-24 96 L-24 0 L-64 0 Z" transform="translate(256 90)" />
+    <path d="M0 -64 L64 0 L24 0 L24 96 L-24 96 L-24 0 L-64 0 Z" transform="translate(120 400) rotate(-135)" />
+    <path d="M0 -64 L64 0 L24 0 L24 96 L-24 96 L-24 0 L-64 0 Z" transform="translate(392 400) rotate(135)" />
+  </g>
+  <g fill="#111111" stroke="#ffffff" stroke-width="12" stroke-linejoin="round" stroke-linecap="round">
+    <polygon points="256,170 356,230 256,290 156,230" />
+    <polygon points="156,230 256,290 256,400 156,340" />
+    <polygon points="256,290 356,230 356,340 256,400" />
+  </g>
+</svg>

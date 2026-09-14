@@ -1,0 +1,287 @@
+<div class="max-w-lg mx-auto bg-white p-6 shadow rounded-2xl">
+  <h2 class="text-xl font-semibold mb-5">New Fabrication Job</h2>
+  <form action="/fabrication/new?_csrf=<%= encodeURIComponent(csrfToken) %>" method="POST" enctype="multipart/form-data" class="space-y-4">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+    <!-- Type -->
+    <div>
+      <label class="block text-sm font-medium text-slate-700 mb-1">Service Type <span class="text-red-500">*</span></label>
+      <select id="fabType" name="type" class="w-full border rounded-xl px-3 py-2 text-sm" required>
+        <option value="">-- select service type --</option>
+        <% FABRICATION_TYPES.forEach(t => { %>
+          <option value="<%= t.value %>"><%= t.label %></option>
+        <% }) %>
+      </select>
+    </div>
+
+    <!-- Job Category (In-House vs Paid) -->
+    <div id="printCategoryWrapper" class="hidden border border-amber-200 bg-amber-50 rounded-xl p-3">
+      <label class="block text-sm font-medium text-amber-900 mb-2">Job Category <span class="text-red-500">*</span></label>
+      <div class="flex gap-4">
+        <label class="flex items-center gap-2 text-sm text-amber-800">
+          <input type="radio" name="printCategory" value="PAID" id="catPaid">
+          <span><strong>Paid Job</strong> — customer is paying for this job</span>
+        </label>
+        <label class="flex items-center gap-2 text-sm text-amber-800">
+          <input type="radio" name="printCategory" value="IN_HOUSE" id="catInHouse">
+          <span><strong>In-House</strong> — internal use, no revenue</span>
+        </label>
+      </div>
+    </div>
+
+    <!-- Project Name (shown only for In-House jobs) -->
+    <div id="projectNameWrapper" class="hidden border border-blue-200 bg-blue-50 rounded-xl p-3">
+      <label class="block text-sm font-medium text-blue-900 mb-1">Project Name <span class="text-red-500">*</span></label>
+      <input type="text" name="projectName" id="projectNameInput" class="w-full border rounded-xl px-3 py-2 text-sm bg-white" placeholder="e.g. Workshop Ventilation System" />
+      <p class="text-xs text-blue-700 mt-1">Specify which internal workshop project this job belongs to.</p>
+    </div>
+
+    <!-- Name -->
+    <div>
+      <label class="block text-sm font-medium text-slate-700 mb-1">Job Name <span class="text-red-500">*</span></label>
+      <input type="text" name="name" class="w-full border rounded-xl px-3 py-2 text-sm" required placeholder="e.g. Acrylic panel for client XYZ" />
+    </div>
+
+    <!-- Date -->
+    <div>
+      <label class="block text-sm font-medium text-slate-700 mb-1">Date</label>
+      <input type="date" name="date" class="w-full border rounded-xl px-3 py-2 text-sm" />
+    </div>
+
+    <!-- Estimated Minutes -->
+    <div>
+      <label class="block text-sm font-medium text-slate-700 mb-1">Estimated Duration (minutes)</label>
+      <input type="number" min="1" name="estimatedMinutes" class="w-full border rounded-xl px-3 py-2 text-sm" placeholder="e.g. 120" />
+      <p class="text-xs text-slate-500 mt-1">How long do you expect this job to take?</p>
+    </div>
+
+    <!-- Additional Cost (3D print only) -->
+    <div id="additionalCostWrapper">
+      <label class="block text-sm font-medium text-slate-700 mb-1">Additional Cost (optional)</label>
+      <input type="number" step="0.01" name="cost" id="additionalCostInput" class="w-full border rounded-xl px-3 py-2 text-sm" />
+      <p class="text-xs text-slate-500 mt-1">Added on top of material cost for 3D print invoices.</p>
+    </div>
+
+    <!-- Line Items (all other services) -->
+    <div id="lineItemsWrapper" class="hidden">
+      <div class="border border-slate-200 bg-slate-50 rounded-2xl p-4">
+        <div class="flex items-center justify-between mb-3 border-b pb-2">
+          <p class="text-sm font-bold text-slate-800">Invoice Line Items</p>
+          <button type="button" id="addLineItemBtn" class="bg-slate-800 text-white px-3 py-1.5 text-xs font-semibold rounded-xl hover:bg-black transition">+ Add Item</button>
+        </div>
+        <div id="lineItemsList" class="space-y-3">
+          <!-- Dynamically added rows will go here -->
+        </div>
+        <p class="text-xs text-slate-400 mt-3 font-medium">Add items such as metal sheet cost, cutting cost, labor fee, etc. The totals will be computed automatically.</p>
+      </div>
+    </div>
+
+    <!-- Cost per gram (3D print only) -->
+    <div id="rateWrapper" class="hidden">
+      <label class="block text-sm font-medium text-slate-700 mb-1">Cost Per Gram (&#8373;)</label>
+      <input
+         id="costPerGramInput"
+         type="number"
+         step="0.01"
+         min="0.01"
+         name="costPerGram"
+         value="<%= Number(costPerGram || 0).toFixed(2) %>"
+         class="w-full border rounded-xl px-3 py-2 text-sm"
+      />
+      <p class="text-xs text-slate-500 mt-1">Remembered for your next 3D print entry.</p>
+    </div>
+
+    <!-- Description / Worker Notes -->
+    <div>
+      <label class="block text-sm font-medium text-slate-700 mb-1">Description / Worker Notes</label>
+      <textarea name="description" class="w-full border rounded-xl px-3 py-2 text-sm" rows="3" placeholder="Brief job description or notes..."></textarea>
+    </div>
+
+    <!-- Files -->
+    <div>
+      <label class="block text-sm font-medium text-slate-700 mb-1">Files (optional)</label>
+      <input id="filesInput" type="file" name="files" multiple class="w-full border rounded-xl px-3 py-2 text-sm" />
+      <p class="text-xs text-slate-500 mt-1">Files are stored privately in Vercel Blob.</p>
+    </div>
+
+    <!-- 3D print mass inputs (shown dynamically) -->
+    <div id="massWrapper" class="hidden">
+      <div class="border border-blue-200 bg-blue-50 rounded-xl p-3">
+        <p class="text-sm font-medium text-blue-900">3D Print Mass Inputs</p>
+        <p class="text-xs text-blue-700 mt-1">Enter mass (grams) for each uploaded print file.</p>
+        <div id="massList" class="space-y-2 mt-3"></div>
+      </div>
+    </div>
+
+    <div class="flex gap-3 pt-2">
+      <button type="submit" class="bg-blue-600 text-white px-5 py-2 rounded-xl font-semibold hover:bg-blue-700 transition">Record Job</button>
+      <a href="/fabrication" class="border px-5 py-2 rounded-xl hover:bg-slate-50 transition">Cancel</a>
+    </div>
+  </form>
+</div>
+
+<script>
+  const typeSelect = document.getElementById('fabType');
+  const filesInput = document.getElementById('filesInput');
+  const massWrapper = document.getElementById('massWrapper');
+  const massList = document.getElementById('massList');
+  const rateWrapper = document.getElementById('rateWrapper');
+  const costPerGramInput = document.getElementById('costPerGramInput');
+  const printCategoryWrapper = document.getElementById('printCategoryWrapper');
+  const additionalCostWrapper = document.getElementById('additionalCostWrapper');
+  const additionalCostInput = document.getElementById('additionalCostInput');
+  const lineItemsWrapper = document.getElementById('lineItemsWrapper');
+  const lineItemsList = document.getElementById('lineItemsList');
+  const addLineItemBtn = document.getElementById('addLineItemBtn');
+
+  function createLineItemRow(label = '', qty = 1, cost = 0.0) {
+    const row = document.createElement('div');
+    row.className = 'flex gap-2 items-center line-item-row';
+
+    // Label input
+    const labelInput = document.createElement('input');
+    labelInput.type = 'text';
+    labelInput.name = 'itemLabels';
+    labelInput.value = label;
+    labelInput.required = true;
+    labelInput.placeholder = 'e.g. Cost of cutting';
+    labelInput.className = 'border rounded-xl px-3 py-2 text-sm flex-1';
+
+    // Qty input
+    const qtyInput = document.createElement('input');
+    qtyInput.type = 'number';
+    qtyInput.name = 'itemQuantities';
+    qtyInput.value = qty;
+    qtyInput.min = '1';
+    qtyInput.required = true;
+    qtyInput.placeholder = 'Qty';
+    qtyInput.className = 'border rounded-xl px-2 py-2 text-sm w-16 text-right';
+
+    // Cost input
+    const costInput = document.createElement('input');
+    costInput.type = 'number';
+    costInput.name = 'itemCosts';
+    costInput.value = cost > 0 ? cost : '';
+    costInput.step = '0.01';
+    costInput.min = '0.00';
+    costInput.required = true;
+    costInput.placeholder = 'Cost (GHS)';
+    costInput.className = 'border rounded-xl px-2 py-2 text-sm w-24 text-right';
+
+    // Remove button
+    const removeBtn = document.createElement('button');
+    removeBtn.type = 'button';
+    removeBtn.className = 'text-red-500 hover:text-red-700 px-2 text-xl font-bold transition duration-150';
+    removeBtn.innerHTML = '&times;';
+    removeBtn.addEventListener('click', () => {
+      row.remove();
+    });
+
+    row.appendChild(labelInput);
+    row.appendChild(qtyInput);
+    row.appendChild(costInput);
+    row.appendChild(removeBtn);
+
+    lineItemsList.appendChild(row);
+  }
+
+  addLineItemBtn.addEventListener('click', () => {
+    createLineItemRow();
+  });
+
+  const projectNameWrapper = document.getElementById('projectNameWrapper');
+  const projectNameInput = document.getElementById('projectNameInput');
+
+  function toggleProjectName() {
+    const catInHouse = document.getElementById('catInHouse');
+    const isInHouse = catInHouse && catInHouse.checked;
+
+    if (isInHouse) {
+      projectNameWrapper.classList.remove('hidden');
+      projectNameInput.required = true;
+      projectNameInput.disabled = false;
+    } else {
+      projectNameWrapper.classList.add('hidden');
+      projectNameInput.required = false;
+      projectNameInput.disabled = true;
+    }
+  }
+
+  // Bind change event to category radio buttons
+  document.querySelectorAll('[name="printCategory"]').forEach(radio => {
+    radio.addEventListener('change', toggleProjectName);
+  });
+
+  function renderMassInputs() {
+    const is3D = typeSelect.value === '3D_PRINTING';
+    const files = Array.from(filesInput.files || []);
+    massList.innerHTML = '';
+    toggleProjectName();
+
+    // Job category is always visible and required for all jobs
+    printCategoryWrapper.classList.remove('hidden');
+    document.getElementById('catPaid').required = true;
+
+    // Line items are now enabled/visible for all services!
+    lineItemsWrapper.classList.remove('hidden');
+    document.querySelectorAll('[name="itemLabels"], [name="itemQuantities"], [name="itemCosts"]').forEach(el => el.disabled = false);
+
+    if (is3D) {
+      rateWrapper.classList.remove('hidden');
+      additionalCostWrapper.classList.remove('hidden');
+      additionalCostInput.disabled = false;
+      costPerGramInput.required = true;
+    } else {
+      rateWrapper.classList.add('hidden');
+      additionalCostWrapper.classList.add('hidden');
+      additionalCostInput.disabled = true;
+      costPerGramInput.required = false;
+      
+      // If no line items exist, add default rows for fiber laser cutting, or one blank row for others
+      if (lineItemsList.children.length === 0) {
+        if (typeSelect.value === 'FIBER_LASER') {
+          createLineItemRow('Cost of metal sheet', 1, 0.0);
+          createLineItemRow('Cost of cutting', 1, 0.0);
+        } else {
+          createLineItemRow();
+        }
+      }
+    }
+
+    if (!is3D || files.length === 0) {
+      massWrapper.classList.add('hidden');
+      return;
+    }
+
+    massWrapper.classList.remove('hidden');
+    files.forEach((file, index) => {
+      const row = document.createElement('div');
+      row.className = 'grid grid-cols-1 md:grid-cols-3 gap-2 items-center';
+
+      const label = document.createElement('div');
+      label.className = 'text-sm text-slate-700 md:col-span-2 break-all';
+      label.textContent = `${index + 1}. ${file.name}`;
+
+      const input = document.createElement('input');
+      input.type = 'number';
+      input.step = '0.01';
+      input.min = '0.01';
+      input.required = true;
+      input.name = 'fileMasses';
+      input.placeholder = 'Mass (g)';
+      input.className = 'border rounded-xl px-2 py-1 text-sm';
+
+      row.appendChild(label);
+      row.appendChild(input);
+      massList.appendChild(row);
+    });
+  }
+
+  typeSelect.addEventListener('change', () => {
+    // Clear old line items when changing type so default seeded ones can apply
+    lineItemsList.innerHTML = '';
+    renderMassInputs();
+  });
+  filesInput.addEventListener('change', renderMassInputs);
+  renderMassInputs();
+</script>

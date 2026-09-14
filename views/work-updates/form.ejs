@@ -1,0 +1,27 @@
+<div class="bg-white p-6 rounded shadow max-w-2xl mx-auto">
+  <h2 class="text-2xl font-semibold mb-6">Post a Work Update</h2>
+  <form action="/work-updates/new" method="POST" class="space-y-4">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <div>
+      <label class="block text-sm font-medium mb-1">Title</label>
+      <input name="title" placeholder="What are you working on?" class="w-full border border-gray-300 px-3 py-2 rounded" required />
+    </div>
+    <div>
+      <label class="block text-sm font-medium mb-1">Status</label>
+      <select name="status" class="w-full border border-gray-300 px-3 py-2 rounded">
+        <option value="PLANNING">📋 Planning</option>
+        <option value="IN_PROGRESS" selected>⚙️ In Progress</option>
+        <option value="DONE">✅ Done</option>
+        <option value="BLOCKED">🚫 Blocked</option>
+      </select>
+    </div>
+    <div>
+      <label class="block text-sm font-medium mb-1">Details</label>
+      <textarea name="content" placeholder="Describe what you're working on, progress, blockers, etc..." class="w-full border border-gray-300 px-3 py-2 rounded" rows="7" required></textarea>
+    </div>
+    <div class="flex gap-3 pt-2">
+      <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 font-medium">Post Update</button>
+      <a href="/work-updates" class="border border-gray-300 px-6 py-2 rounded hover:bg-gray-50">Cancel</a>
+    </div>
+  </form>
+</div>

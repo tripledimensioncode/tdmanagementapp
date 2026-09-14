@@ -1,0 +1,373 @@
+<div class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+  <div>
+    <h1 class="text-2xl font-bold">Workshop Analytics</h1>
+    <p class="text-sm text-slate-500 mt-1">Cross-operational metrics, service analysis, and finance insights.</p>
+  </div>
+  <div class="flex gap-2">
+    <select id="periodSelect" class="border rounded-xl px-3 py-1.5 text-sm bg-white shadow-sm font-semibold text-slate-700">
+      <option value="7d">Last 7 days</option>
+      <option value="30d" selected>Last 30 days</option>
+      <option value="90d">Last 90 days</option>
+      <option value="1y">Last year</option>
+      <option value="all">All time</option>
+    </select>
+  </div>
+</div>
+
+<!-- Summary cards -->
+<div id="summaryCards" class="grid grid-cols-2 gap-4 mb-8 sm:grid-cols-4">
+  <div class="bg-white rounded-2xl shadow p-5 border border-slate-100 transition hover:shadow-md">
+    <div class="text-xs font-bold text-slate-400 uppercase tracking-widest">Completed Jobs</div>
+    <div class="text-3xl font-extrabold mt-1.5 text-slate-900" id="cardTotalJobs">—</div>
+    <div class="text-xs text-slate-500 mt-1">All service types combined</div>
+  </div>
+  <div class="bg-white rounded-2xl shadow p-5 border border-slate-100 transition hover:shadow-md">
+    <div class="text-xs font-bold text-slate-400 uppercase tracking-widest">Fabrication Revenue</div>
+    <div class="text-3xl font-extrabold mt-1.5 text-emerald-600" id="cardTotalRevenue">—</div>
+    <div class="text-xs text-slate-500 mt-1">Sum of completed paid jobs</div>
+  </div>
+  <div class="bg-white rounded-2xl shadow p-5 border border-slate-100 transition hover:shadow-md">
+    <div class="text-xs font-bold text-slate-400 uppercase tracking-widest">3D Filament Used</div>
+    <div class="text-3xl font-extrabold mt-1.5 text-blue-600" id="cardFilament">—</div>
+    <div class="text-xs text-slate-500 mt-1">Total mass printed</div>
+  </div>
+  <div class="bg-white rounded-2xl shadow p-5 border border-slate-100 transition hover:shadow-md">
+    <div class="text-xs font-bold text-slate-400 uppercase tracking-widest">Laser Cutting Jobs</div>
+    <div class="text-3xl font-extrabold mt-1.5 text-purple-600" id="cardLaserJobs">—</div>
+    <div class="text-xs text-slate-500 mt-1">Fiber & CO2 laser jobs</div>
+  </div>
+</div>
+
+<!-- Main Analytics Section -->
+<h2 class="text-base font-bold text-slate-400 uppercase tracking-widest mb-4">Core Workshop Operations</h2>
+<div class="grid grid-cols-1 gap-6 lg:grid-cols-2 mb-10">
+
+  <!-- Job count by service type -->
+  <div class="bg-white rounded-2xl shadow p-5 border border-slate-100">
+    <h3 class="text-sm font-bold text-slate-700 uppercase tracking-wider mb-4">Job Count by Service Type</h3>
+    <div class="relative h-64"><canvas id="chartCountByType"></canvas></div>
+  </div>
+
+  <!-- Completed Jobs by Service List -->
+  <div class="bg-white rounded-2xl shadow p-5 border border-slate-100 flex flex-col justify-between">
+    <div>
+      <h3 class="text-sm font-bold text-slate-700 uppercase tracking-wider mb-4">Completed Jobs by Service</h3>
+      <div class="space-y-3" id="serviceCountsList">
+        <div class="flex items-center justify-between border-b pb-2 text-sm text-slate-600 last:border-0 last:pb-0">
+          <span class="font-medium text-slate-600">3D Printing</span>
+          <span class="font-bold text-slate-900 bg-slate-100 px-2.5 py-1 rounded-full text-xs" id="count-3d">—</span>
+        </div>
+        <div class="flex items-center justify-between border-b pb-2 text-sm text-slate-600 last:border-0 last:pb-0">
+          <span class="font-medium text-slate-600">Fiber Laser Cutting</span>
+          <span class="font-bold text-slate-900 bg-slate-100 px-2.5 py-1 rounded-full text-xs" id="count-fiber">—</span>
+        </div>
+        <div class="flex items-center justify-between border-b pb-2 text-sm text-slate-600 last:border-0 last:pb-0">
+          <span class="font-medium text-slate-600">CO2 Laser Cutting</span>
+          <span class="font-bold text-slate-900 bg-slate-100 px-2.5 py-1 rounded-full text-xs" id="count-co2">—</span>
+        </div>
+        <div class="flex items-center justify-between border-b pb-2 text-sm text-slate-600 last:border-0 last:pb-0">
+          <span class="font-medium text-slate-600">Electronics Build</span>
+          <span class="font-bold text-slate-900 bg-slate-100 px-2.5 py-1 rounded-full text-xs" id="count-elec">—</span>
+        </div>
+        <div class="flex items-center justify-between border-b pb-2 text-sm text-slate-600 last:border-0 last:pb-0">
+          <span class="font-medium text-slate-600">3D Modelling / Designing</span>
+          <span class="font-bold text-slate-900 bg-slate-100 px-2.5 py-1 rounded-full text-xs" id="count-design">—</span>
+        </div>
+      </div>
+    </div>
+    <div class="mt-4 pt-3 border-t text-xs text-slate-400">
+      Counts represent completed fabrication jobs.
+    </div>
+  </div>
+
+  <!-- Time by service type -->
+  <div class="bg-white rounded-2xl shadow p-5 border border-slate-100">
+    <h3 class="text-sm font-bold text-slate-700 uppercase tracking-wider mb-4">Time by Service Type (Minutes)</h3>
+    <div class="relative h-64"><canvas id="chartTimeByType"></canvas></div>
+  </div>
+
+  <!-- Revenue by fabrication type -->
+  <div class="bg-white rounded-2xl shadow p-5 border border-slate-100">
+    <h3 class="text-sm font-bold text-slate-700 uppercase tracking-wider mb-4">Revenue by Service Type</h3>
+    <div class="relative h-64"><canvas id="chartRevenue"></canvas></div>
+  </div>
+
+  <!-- Time by worker -->
+  <div class="bg-white rounded-2xl shadow p-5 border border-slate-100">
+    <h3 class="text-sm font-bold text-slate-700 uppercase tracking-wider mb-4">Fabrication Duration by Worker</h3>
+    <div class="relative h-64"><canvas id="chartTimeByWorker"></canvas></div>
+  </div>
+
+  <!-- Monthly income vs expenditure -->
+  <div class="bg-white rounded-2xl shadow p-5 border border-slate-100">
+    <h3 class="text-sm font-bold text-slate-700 uppercase tracking-wider mb-4">Monthly Income vs Expenditure</h3>
+    <div class="relative h-64"><canvas id="chartMonthly"></canvas></div>
+  </div>
+
+  <!-- Attendance by worker -->
+  <div class="bg-white rounded-2xl shadow p-5 border border-slate-100">
+    <h3 class="text-sm font-bold text-slate-700 uppercase tracking-wider mb-4">Attendance Hours by Worker</h3>
+    <div class="relative h-64"><canvas id="chartAttendance"></canvas></div>
+  </div>
+
+  <!-- Funding request status -->
+  <div class="bg-white rounded-2xl shadow p-5 border border-slate-100">
+    <h3 class="text-sm font-bold text-slate-700 uppercase tracking-wider mb-4">Funding Request Outcomes</h3>
+    <div class="relative h-64"><canvas id="chartFundingStatus"></canvas></div>
+  </div>
+
+
+</div>
+
+<!-- 3D Printing Specific Subsection -->
+<h2 class="text-base font-bold text-slate-400 uppercase tracking-widest mb-4">3D Printing Operations</h2>
+<div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
+
+  <!-- Filament: In-house vs Paid -->
+  <div class="bg-white rounded-2xl shadow p-5 border border-slate-100">
+    <h3 class="text-sm font-bold text-slate-700 uppercase tracking-wider mb-4">Filament: In-House vs Paid</h3>
+    <div class="relative h-64"><canvas id="chartFilamentCat"></canvas></div>
+  </div>
+
+  <!-- In-House Prints by Project -->
+  <div class="bg-white rounded-2xl shadow p-5 border border-slate-100">
+    <h3 class="text-sm font-bold text-slate-700 uppercase tracking-wider mb-4">In-House Prints by Project (grams)</h3>
+    <div class="relative h-64"><canvas id="chartInHouseProjects"></canvas></div>
+  </div>
+
+  <!-- Filament weekly usage -->
+  <div class="bg-white rounded-2xl shadow p-5 border border-slate-100">
+    <h3 class="text-sm font-bold text-slate-700 uppercase tracking-wider mb-4">Weekly Filament Usage (grams)</h3>
+    <div class="relative h-64"><canvas id="chartFilamentWeekly"></canvas></div>
+  </div>
+
+  <!-- Top 10 heaviest prints -->
+  <div class="bg-white rounded-2xl shadow p-5 border border-slate-100">
+    <h3 class="text-sm font-bold text-slate-700 uppercase tracking-wider mb-4">Top 10 Heaviest 3D Prints</h3>
+    <div class="relative h-64"><canvas id="chartTopPrints"></canvas></div>
+  </div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+(function() {
+  const TYPE_LABELS = {
+    '3D_PRINTING': '3D Printing',
+    'FIBER_LASER': 'Fiber Laser Cutting',
+    'CO2_LASER': 'CO2 Laser Cutting',
+    'ELECTRONICS': 'Electronics Build',
+    '3D_MODELLING': '3D Modelling'
+  };
+
+  const PALETTE = [
+    '#3b82f6','#a855f7','#f59e0b','#ef4444','#10b981',
+    '#06b6d4','#f97316','#84cc16','#ec4899','#6366f1'
+  ];
+
+  let charts = {};
+
+  function destroyAll() {
+    Object.values(charts).forEach(c => c.destroy());
+    charts = {};
+  }
+
+  function makeChart(id, config) {
+    const canvas = document.getElementById(id);
+    if (!canvas) return;
+    charts[id] = new Chart(canvas, config);
+  }
+
+  function labelled(keys) {
+    return keys.map(k => TYPE_LABELS[k] || k);
+  }
+
+  async function loadAll() {
+    const period = document.getElementById('periodSelect').value;
+    destroyAll();
+
+    const [timeData, moneyData, filamentData] = await Promise.all([
+      fetch(`/analytics/api/time?period=${period}`).then(r => r.json()),
+      fetch(`/analytics/api/money?period=${period}`).then(r => r.json()),
+      fetch(`/analytics/api/filament?period=${period}`).then(r => r.json())
+    ]);
+
+    // Calculate total revenue from moneyData.revenueByType
+    const totalRev = Object.values(moneyData.revenueByType).reduce((s, r) => s + Number(r || 0), 0);
+
+    // Calculate laser cutting jobs count
+    const fiberLaserCount = timeData.jobCountsByType['FIBER_LASER'] || 0;
+    const co2LaserCount = timeData.jobCountsByType['CO2_LASER'] || 0;
+    const totalLaserJobs = fiberLaserCount + co2LaserCount;
+
+    // Populate summary cards
+    document.getElementById('cardTotalJobs').textContent = timeData.totalJobs || 0;
+    document.getElementById('cardTotalRevenue').textContent = '₵' + totalRev.toFixed(2);
+    document.getElementById('cardFilament').textContent = filamentData.summary.totalGrams.toFixed(0) + ' g';
+    document.getElementById('cardLaserJobs').textContent = totalLaserJobs;
+
+    // Populate text-based job counts
+    document.getElementById('count-3d').textContent = (timeData.jobCountsByType['3D_PRINTING'] || 0) + ' jobs';
+    document.getElementById('count-fiber').textContent = (timeData.jobCountsByType['FIBER_LASER'] || 0) + ' jobs';
+    document.getElementById('count-co2').textContent = (timeData.jobCountsByType['CO2_LASER'] || 0) + ' jobs';
+    document.getElementById('count-elec').textContent = (timeData.jobCountsByType['ELECTRONICS'] || 0) + ' jobs';
+    document.getElementById('count-design').textContent = (timeData.jobCountsByType['3D_MODELLING'] || 0) + ' jobs';
+
+    // Job Count by type (bar)
+    const countKeys = Object.keys(timeData.jobCountsByType);
+    makeChart('chartCountByType', {
+      type: 'bar',
+      data: {
+        labels: labelled(countKeys),
+        datasets: [{ label: 'Jobs Completed', data: countKeys.map(k => timeData.jobCountsByType[k]), backgroundColor: PALETTE }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          y: {
+            ticks: { stepSize: 1 }
+          }
+        }
+      }
+    });
+
+    // Time by type (bar)
+    const typeKeys = Object.keys(timeData.byType);
+    makeChart('chartTimeByType', {
+      type: 'bar',
+      data: {
+        labels: labelled(typeKeys),
+        datasets: [{ label: 'Minutes', data: typeKeys.map(k => timeData.byType[k]), backgroundColor: PALETTE }]
+      },
+      options: { responsive: true, maintainAspectRatio: false }
+    });
+
+    // Time by worker (bar)
+    const wKeys = Object.keys(timeData.byWorker);
+    makeChart('chartTimeByWorker', {
+      type: 'bar',
+      data: {
+        labels: wKeys,
+        datasets: [{ label: 'Minutes', data: wKeys.map(k => timeData.byWorker[k]), backgroundColor: PALETTE }]
+      },
+      options: { responsive: true, maintainAspectRatio: false }
+    });
+
+    // Monthly income vs expenditure (grouped bar)
+    makeChart('chartMonthly', {
+      type: 'bar',
+      data: {
+        labels: moneyData.monthlyData.map(m => m.label),
+        datasets: [
+          { label: 'Income', data: moneyData.monthlyData.map(m => m.deposits), backgroundColor: '#10b981' },
+          { label: 'Expenditure', data: moneyData.monthlyData.map(m => m.withdrawals), backgroundColor: '#ef4444' }
+        ]
+      },
+      options: { responsive: true, maintainAspectRatio: false, scales: { x: { stacked: false } } }
+    });
+
+    // Revenue by type (doughnut)
+    const rtKeys = Object.keys(moneyData.revenueByType);
+    makeChart('chartRevenue', {
+      type: 'doughnut',
+      data: {
+        labels: labelled(rtKeys),
+        datasets: [{ data: rtKeys.map(k => moneyData.revenueByType[k]), backgroundColor: PALETTE }]
+      },
+      options: { responsive: true, maintainAspectRatio: false }
+    });
+
+    // Filament category (pie)
+    makeChart('chartFilamentCat', {
+      type: 'pie',
+      data: {
+        labels: ['Paid', 'In-House'],
+        datasets: [{
+          data: [filamentData.categoryBreakdown.PAID, filamentData.categoryBreakdown.IN_HOUSE],
+          backgroundColor: ['#10b981', '#f59e0b']
+        }]
+      },
+      options: { responsive: true, maintainAspectRatio: false }
+    });
+
+    // In-House Projects (doughnut)
+    const projKeys = Object.keys(filamentData.inHouseProjects);
+    makeChart('chartInHouseProjects', {
+      type: 'doughnut',
+      data: {
+        labels: projKeys,
+        datasets: [{
+          data: projKeys.map(k => filamentData.inHouseProjects[k]),
+          backgroundColor: PALETTE
+        }]
+      },
+      options: { responsive: true, maintainAspectRatio: false }
+    });
+
+    // Filament weekly (line)
+    makeChart('chartFilamentWeekly', {
+      type: 'line',
+      data: {
+        labels: filamentData.weeklyUsage.map(w => w.label),
+        datasets: [{
+          label: 'Grams',
+          data: filamentData.weeklyUsage.map(w => w.massGrams),
+          borderColor: '#3b82f6',
+          backgroundColor: 'rgba(59,130,246,0.1)',
+          fill: true,
+          tension: 0.3
+        }]
+      },
+      options: { responsive: true, maintainAspectRatio: false }
+    });
+
+    // Top 10 heaviest prints (horizontal bar)
+    const topPrints = filamentData.byJob.slice(0, 10);
+    makeChart('chartTopPrints', {
+      type: 'bar',
+      data: {
+        labels: topPrints.map(p => p.name.length > 18 ? p.name.slice(0, 18) + '…' : p.name),
+        datasets: [{ label: 'Grams', data: topPrints.map(p => p.massGrams), backgroundColor: PALETTE }]
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false
+      }
+    });
+
+    // Funding request status (doughnut)
+    const frs = moneyData.requestStatus;
+    makeChart('chartFundingStatus', {
+      type: 'doughnut',
+      data: {
+        labels: ['Pending', 'Approved', 'Declined'],
+        datasets: [{
+          data: [frs.PENDING, frs.APPROVED, frs.DECLINED],
+          backgroundColor: ['#f59e0b', '#10b981', '#ef4444']
+        }]
+      },
+      options: { responsive: true, maintainAspectRatio: false }
+    });
+
+    // Attendance by worker (bar — minutes to hours)
+    const attKeys = Object.keys(timeData.attendanceByWorker);
+    makeChart('chartAttendance', {
+      type: 'bar',
+      data: {
+        labels: attKeys,
+        datasets: [{
+          label: 'Hours',
+          data: attKeys.map(k => +(timeData.attendanceByWorker[k] / 60).toFixed(1)),
+          backgroundColor: PALETTE
+        }]
+      },
+      options: { responsive: true, maintainAspectRatio: false }
+    });
+  }
+
+  document.getElementById('periodSelect').addEventListener('change', loadAll);
+  loadAll();
+})();
+</script>

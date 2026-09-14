@@ -1,0 +1,6 @@
+# RETIRED — this app is not deployed on a Raspberry Pi or any other
+# self-hosted machine. It runs entirely on Vercel as a serverless function
+# (see README.md and docs/vercel-migration-plan.md).
+#
+# This file is kept only as an inert placeholder because this deployment
+# cannot delete files from the repository. Do not use it.

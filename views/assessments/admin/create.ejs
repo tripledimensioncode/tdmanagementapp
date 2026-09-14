@@ -1,0 +1,31 @@
+<div class="bg-white p-6 rounded shadow max-w-2xl mx-auto">
+  <h2 class="text-2xl font-semibold mb-2">Create Assessment Template</h2>
+  <p class="text-sm text-gray-600 mb-6">Define a new assessment template with custom questions. Provide questions as a JSON array.</p>
+  
+  <div class="bg-blue-50 border border-blue-200 rounded p-4 mb-6 text-sm">
+    <div class="font-medium mb-2">Example JSON:</div>
+    <code class="text-xs bg-white p-2 block rounded overflow-x-auto">[
+  {"label":"How are you feeling?","type":"NUMBER"},
+  {"label":"Any blockers today?","type":"TEXT"},
+  {"label":"Completed tasks?","type":"YESNO"},
+  {"label":"Priority","type":"MULTIPLE_CHOICE","options":["High","Medium","Low"]}
+]</code>
+    <p class="mt-2 text-xs">Question types: <code>TEXT</code>, <code>NUMBER</code>, <code>YESNO</code>, <code>MULTIPLE_CHOICE</code></p>
+  </div>
+
+  <form action="/assessments/admin/create" method="POST" class="space-y-4">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <div>
+      <label class="block text-sm font-medium mb-1">Template Title</label>
+      <input name="title" placeholder="e.g. Daily Standup" class="w-full border border-gray-300 px-3 py-2 rounded" required />
+    </div>
+    <div>
+      <label class="block text-sm font-medium mb-1">Questions (JSON Array)</label>
+      <textarea name="questionsJson" placeholder='[{"label":"Question 1?","type":"TEXT"}]' class="w-full border border-gray-300 px-3 py-2 rounded font-mono text-sm" rows="10" required></textarea>
+    </div>
+    <div class="flex gap-3 pt-2">
+      <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 font-medium">Create Template</button>
+      <a href="/assessments" class="border border-gray-300 px-6 py-2 rounded hover:bg-gray-50">Cancel</a>
+    </div>
+  </form>
+</div>

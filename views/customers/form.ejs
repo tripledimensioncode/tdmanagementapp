@@ -1,0 +1,108 @@
+<div class="max-w-lg mx-auto bg-white p-6 shadow rounded-2xl border border-slate-200">
+  <h2 class="text-xl font-bold text-slate-900 mb-5">
+    <%= item ? 'Edit Customer' : 'Add New Customer' %>
+  </h2>
+  
+  <form action="<%= item ? '/customers/' + item.id + '/edit' : '/customers/new' %>?_csrf=<%= encodeURIComponent(csrfToken) %>" method="POST" class="space-y-4">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+    <!-- Name -->
+    <div>
+      <label class="block text-sm font-semibold text-slate-700 mb-1">Customer Name <span class="text-red-500">*</span></label>
+      <input 
+        type="text" 
+        name="name" 
+        value="<%= item ? item.name : '' %>" 
+        required 
+        class="w-full border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" 
+        placeholder="e.g. Samuel Amissah"
+      />
+    </div>
+
+    <!-- Phone -->
+    <div>
+      <label class="block text-sm font-semibold text-slate-700 mb-1">Telephone / Phone</label>
+      <input 
+        type="text" 
+        name="phone" 
+        value="<%= item ? item.phone : '' %>" 
+        class="w-full border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" 
+        placeholder="e.g. +233 24 123 4567"
+      />
+    </div>
+
+    <!-- Email -->
+    <div>
+      <label class="block text-sm font-semibold text-slate-700 mb-1">Email Address</label>
+      <input 
+        type="email" 
+        name="email" 
+        value="<%= item ? item.email : '' %>" 
+        class="w-full border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" 
+        placeholder="e.g. client@example.com"
+      />
+    </div>
+
+    <!-- Location -->
+    <div>
+      <label class="block text-sm font-semibold text-slate-700 mb-1">Location</label>
+      <input 
+        type="text" 
+        name="location" 
+        value="<%= item ? item.location : '' %>" 
+        class="w-full border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" 
+        placeholder="e.g. Accra, Ghana"
+      />
+    </div>
+
+    <!-- Last Job Details -->
+    <div>
+      <label class="block text-sm font-semibold text-slate-700 mb-1">Last Job From Customer</label>
+      <input 
+        type="text" 
+        name="lastJobDetails" 
+        value="<%= item ? item.lastJobDetails : '' %>" 
+        class="w-full border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" 
+        placeholder="e.g. 3D Printed case, Wood engraving"
+      />
+    </div>
+
+    <!-- Comments / Notes -->
+    <div>
+      <label class="block text-sm font-semibold text-slate-700 mb-1">Comment / Additional Details</label>
+      <textarea 
+        name="comment" 
+        rows="3" 
+        class="w-full border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" 
+        placeholder="A little detail or comment from the customer (e.g. interested in laser cutting wood plates, follow up next Monday)..."
+      ><%= item ? item.comment : '' %></textarea>
+    </div>
+
+    <!-- Is Potential Customer? -->
+    <div class="border border-amber-200 bg-amber-50 rounded-xl p-3">
+      <label class="flex items-start gap-2.5 text-sm text-amber-900 cursor-pointer">
+        <input 
+          type="checkbox" 
+          name="isPotential" 
+          value="1" 
+          <%= item && item.isPotential ? 'checked' : '' %>
+          class="rounded border-amber-300 text-amber-600 focus:ring-amber-500 h-4 w-4 mt-0.5"
+        />
+        <div>
+          <span class="font-bold">Flag as Potential Customer</span>
+          <span class="block text-xs text-amber-700 mt-0.5">This customer potentially has a pending job for us and will appear in everyone's dashboard to push harder.</span>
+        </div>
+      </label>
+    </div>
+
+    <!-- Buttons -->
+    <div class="flex gap-3 pt-2">
+      <button type="submit" class="bg-blue-600 text-white px-5 py-2.5 rounded-xl font-semibold hover:bg-blue-700 transition shadow-sm">
+        <%= item ? 'Save Updates' : 'Add Customer' %>
+      </button>
+      <a href="/customers" class="border border-slate-200 px-5 py-2.5 rounded-xl text-slate-700 hover:bg-slate-50 transition">
+        Cancel
+      </a>
+    </div>
+  </form>
+</div>

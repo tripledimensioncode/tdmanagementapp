@@ -1,0 +1,452 @@
+<%
+  // Group items by department
+  const grouped = {};
+  items.forEach(function(it) {
+    const key = (it.department && it.department.name) || 'Unassigned';
+    if (!grouped[key]) grouped[key] = [];
+    grouped[key].push(it);
+  });
+  const groupKeys = Object.keys(grouped).sort((a, b) =>
+    a === 'Unassigned' ? 1 : b === 'Unassigned' ? -1 : a.localeCompare(b)
+  );
+%>
+
+<!-- ── Lightbox overlay (shared, hidden) ──────────────────────────────────── -->
+<div id="imgLightbox"
+  class="fixed inset-0 z-50 hidden items-center justify-center bg-black/80 p-4"
+  onclick="document.getElementById('imgLightbox').classList.add('hidden');document.getElementById('imgLightbox').classList.remove('flex')">
+  <img id="imgLightboxSrc" src="" alt=""
+    class="max-h-[90vh] max-w-[90vw] rounded-2xl shadow-2xl object-contain" />
+  <button class="absolute top-4 right-4 text-white text-3xl leading-none hover:text-slate-300"
+    onclick="document.getElementById('imgLightbox').classList.add('hidden');document.getElementById('imgLightbox').classList.remove('flex')">&times;</button>
+</div>
+
+<!-- ── Page header ────────────────────────────────────────────────────────── -->
+<div class="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+  <h1 class="text-2xl font-bold">Inventory</h1>
+  <% if (currentUser && currentUser.role === 'ADMIN') { %>
+    <a href="#manage" class="w-full rounded-xl border border-slate-300 px-4 py-2 text-center text-sm text-slate-600 hover:bg-slate-50 sm:w-auto">
+      &#9881; Manage Categories &amp; Departments
+    </a>
+  <% } %>
+</div>
+
+<!-- ── Filter Bar ──────────────────────────────────────────────────────────── -->
+<div class="rounded-2xl bg-white shadow p-4 mb-6">
+  <form method="GET" action="/inventory" class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+    <div class="lg:col-span-1">
+      <label class="block text-xs font-medium text-slate-500 mb-1">Search Name</label>
+      <input name="q" value="<%= filters.q %>" placeholder="e.g. drill bit…" class="w-full border rounded-xl px-3 py-2 text-sm">
+    </div>
+    <div>
+      <label class="block text-xs font-medium text-slate-500 mb-1">Category</label>
+      <select name="categoryId" class="w-full border rounded-xl px-3 py-2 text-sm bg-white">
+        <option value="">All Categories</option>
+        <% categories.forEach(function(c) { %>
+          <option value="<%= c.id %>" <%= filters.categoryId == c.id ? 'selected' : '' %>><%= c.name %></option>
+        <% }); %>
+      </select>
+    </div>
+    <div>
+      <label class="block text-xs font-medium text-slate-500 mb-1">Department</label>
+      <select name="departmentId" class="w-full border rounded-xl px-3 py-2 text-sm bg-white">
+        <option value="">All Departments</option>
+        <% departments.forEach(function(d) { %>
+          <option value="<%= d.id %>" <%= filters.departmentId == d.id ? 'selected' : '' %>><%= d.name %></option>
+        <% }); %>
+      </select>
+    </div>
+    <div class="flex items-end gap-2">
+      <button type="submit" class="flex-1 bg-slate-800 text-white rounded-xl px-3 py-2 text-sm font-semibold hover:bg-black transition">Filter</button>
+      <a href="/inventory" class="flex-1 border rounded-xl px-3 py-2 text-sm text-slate-600 hover:bg-slate-50 transition text-center">No filter</a>
+    </div>
+  </form>
+  <div class="mt-2 text-xs text-slate-400">
+    <%= items.length %> item<%= items.length !== 1 ? 's' : '' %>
+    <% if (filters.q || filters.categoryId || filters.departmentId) { %>
+      <span class="text-blue-500">(filtered)</span>
+      <a href="/inventory" class="ml-2 text-red-400 hover:underline">Clear</a>
+    <% } %>
+  </div>
+</div>
+
+<!-- ── Items grouped by Department ────────────────────────────────────────── -->
+<% if (items.length === 0) { %>
+  <div class="rounded-2xl bg-white shadow p-10 text-center text-slate-400">
+    <div class="text-4xl mb-3">&#128230;</div>
+    <p class="text-sm">No items match the selected filters.</p>
+    <a href="/inventory" class="mt-2 inline-block text-blue-600 text-sm hover:underline">Show all items</a>
+  </div>
+<% } else { %>
+  <div class="space-y-6">
+    <% groupKeys.forEach(function(groupName) { %>
+      <div class="rounded-2xl bg-white shadow overflow-hidden">
+
+        <!-- Department header -->
+        <div class="flex items-center gap-3 px-5 py-3 bg-slate-50 border-b">
+          <span class="h-3 w-3 rounded-full bg-blue-500 flex-shrink-0"></span>
+          <h2 class="text-sm font-bold text-slate-800 uppercase tracking-wide"><%= groupName %></h2>
+          <span class="ml-auto text-xs text-slate-400"><%= grouped[groupName].length %> item<%= grouped[groupName].length !== 1 ? 's' : '' %></span>
+        </div>
+
+        <!-- Items table -->
+        <div class="responsive-table">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="border-b text-slate-500 text-xs uppercase tracking-wide">
+                <th class="px-4 py-2 text-left font-medium w-14">Photo</th>
+                <th class="px-4 py-2 text-left font-medium">Name</th>
+                <th class="px-4 py-2 text-left font-medium">Category</th>
+                <th class="px-4 py-2 text-left font-medium">Qty</th>
+                <th class="px-4 py-2 text-left font-medium">Location</th>
+                <th class="px-4 py-2 text-left font-medium">Updated</th>
+                <% if (currentUser && currentUser.role === 'ADMIN') { %>
+                  <th class="px-4 py-2 text-left font-medium">Actions</th>
+                <% } %>
+              </tr>
+            </thead>
+            <tbody>
+              <% grouped[groupName].forEach(function(it) { %>
+                <tr class="border-t hover:bg-slate-50 transition" id="row-<%= it.id %>">
+
+                  <!-- Thumbnail -->
+                  <td class="px-4 py-3">
+                    <% if (it.imagePath) { %>
+                      <button
+                        type="button"
+                        data-image-path="<%= it.imagePath %>"
+                        data-item-name="<%= it.name %>"
+                        onclick="openLightbox(this)"
+                        class="block w-12 h-12 rounded-xl overflow-hidden border border-slate-200 hover:border-blue-400 transition focus:outline-none focus:ring-2 focus:ring-blue-400"
+                        title="View photo of <%= it.name %>"
+                      >
+                        <img src="<%= it.imagePath %>" alt="<%= it.name %>"
+                          class="w-full h-full object-cover" loading="lazy" />
+                      </button>
+                    <% } else { %>
+                      <div class="w-12 h-12 rounded-xl border border-dashed border-slate-200 bg-slate-50 flex items-center justify-center text-slate-300 text-lg">
+                        &#128247;
+                      </div>
+                    <% } %>
+                  </td>
+
+                  <!-- Name + description -->
+                  <td class="px-4 py-3 font-medium text-slate-900">
+                    <div class="flex items-center gap-1.5 flex-wrap">
+                      <span><%= it.name %></span>
+                      <% if (it.imagePath) { %>
+                        <button
+                          type="button"
+                          data-image-path="<%= it.imagePath %>"
+                          data-item-name="<%= it.name %>"
+                          onclick="openLightbox(this)"
+                          class="inline-flex items-center justify-center text-blue-500 hover:text-blue-700 transition focus:outline-none"
+                          title="View photo of <%= it.name %>"
+                        >
+                          &#128247;
+                        </button>
+                      <% } %>
+                    </div>
+                    <% if (it.description) { %>
+                      <div class="text-xs text-slate-400 font-normal truncate max-w-xs"><%= it.description %></div>
+                    <% } %>
+                  </td>
+
+                  <td class="px-4 py-3 text-slate-600 text-xs"><%= (it.category && it.category.name) || '—' %></td>
+
+                  <!-- Qty with colour coding -->
+                  <td class="px-4 py-3">
+                    <span class="<%= it.quantity <= 0 ? 'bg-red-100 text-red-700' : it.quantity < 5 ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700' %> px-2 py-0.5 rounded-full text-xs font-bold">
+                      <%= it.quantity %>
+                    </span>
+                  </td>
+
+                  <td class="px-4 py-3 text-slate-500 text-xs"><%= it.location || '—' %></td>
+                  <td class="px-4 py-3 text-slate-400 text-xs whitespace-nowrap">
+                    <%= new Date(it.lastUpdated).toLocaleDateString() %>
+                    <% if (it.updatedBy) { %><div class="text-slate-300"><%= it.updatedBy.name %></div><% } %>
+                  </td>
+
+                  <% if (currentUser && currentUser.role === 'ADMIN') { %>
+                    <td class="px-4 py-3 whitespace-nowrap">
+                      <button type="button"
+                        class="text-xs text-blue-600 hover:underline"
+                        onclick="toggleEdit(<%= it.id %>)">Edit</button>
+                      <% if (it.imagePath) { %>
+                        <form action="/inventory/<%= it.id %>/remove-image" method="POST" class="inline ml-2">
+                          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                          <button type="submit" class="text-xs text-amber-500 hover:underline"
+                            onclick="return confirm('Remove the photo for this item?')">&#128247; Remove photo</button>
+                        </form>
+                      <% } %>
+                      <form action="/inventory/<%= it.id %>/delete" method="POST" class="inline ml-2">
+                        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                        <button type="submit" class="text-xs text-red-500 hover:underline"
+                          onclick="return confirm('Delete this item?')">Delete</button>
+                      </form>
+                    </td>
+                  <% } %>
+                </tr>
+
+                <!-- ── Inline edit row (admin only, hidden by default) ──── -->
+                <% if (currentUser && currentUser.role === 'ADMIN') { %>
+                  <tr id="edit-<%= it.id %>" class="hidden bg-blue-50/30 border-t border-blue-100">
+                    <td colspan="7" class="px-4 py-4">
+                      <form action="/inventory/<%= it.id %>/adjust?_csrf=<%= encodeURIComponent(csrfToken) %>" method="POST"
+                        enctype="multipart/form-data"
+                        class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 items-end">
+                        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+                        <div>
+                          <label class="text-xs text-slate-500 mb-1 block">Quantity</label>
+                          <input name="quantity" type="number" value="<%= it.quantity %>"
+                            class="w-full border rounded-xl px-3 py-2 text-sm">
+                        </div>
+
+                        <div>
+                          <label class="text-xs text-slate-500 mb-1 block">Location</label>
+                          <input name="location" value="<%= it.location || '' %>"
+                            class="w-full border rounded-xl px-3 py-2 text-sm">
+                        </div>
+
+                        <div>
+                          <label class="text-xs text-slate-500 mb-1 block">Category</label>
+                          <select name="categoryId" class="w-full border rounded-xl px-3 py-2 text-sm bg-white">
+                            <option value="">— none —</option>
+                            <% categories.forEach(function(c) { %>
+                              <option value="<%= c.id %>" <%= it.categoryId === c.id ? 'selected' : '' %>><%= c.name %></option>
+                            <% }); %>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label class="text-xs text-slate-500 mb-1 block">Department</label>
+                          <select name="departmentId" class="w-full border rounded-xl px-3 py-2 text-sm bg-white">
+                            <option value="">— none —</option>
+                            <% departments.forEach(function(d) { %>
+                              <option value="<%= d.id %>" <%= it.departmentId === d.id ? 'selected' : '' %>><%= d.name %></option>
+                            <% }); %>
+                          </select>
+                        </div>
+
+                        <!-- Photo upload / replace -->
+                        <div>
+                          <label class="text-xs text-slate-500 mb-1 block">
+                            <%= it.imagePath ? 'Replace Photo' : 'Add Photo' %>
+                          </label>
+                          <label class="flex items-center gap-2 w-full cursor-pointer border border-dashed border-slate-300 rounded-xl px-3 py-2 hover:bg-slate-50 transition text-xs text-slate-500">
+                            <span>&#128247;</span>
+                            <span id="imgLabel-<%= it.id %>"><%= it.imagePath ? 'Choose new…' : 'Take or choose…' %></span>
+                            <input type="file" name="image" accept="image/*" capture="environment" class="hidden"
+                              onchange="updateImgLabel(this, 'imgLabel-<%= it.id %>')" />
+                          </label>
+                        </div>
+
+                        <!-- Save / Cancel -->
+                        <div class="flex gap-2 col-span-2 md:col-span-1">
+                          <button type="submit" class="flex-1 bg-blue-600 text-white rounded-xl px-3 py-2 text-xs font-semibold hover:bg-blue-700 transition">Save</button>
+                          <button type="button" class="border rounded-xl px-3 py-2 text-xs text-slate-600 hover:bg-slate-100"
+                            onclick="toggleEdit(<%= it.id %>)">Cancel</button>
+                        </div>
+                      </form>
+                    </td>
+                  </tr>
+                <% } %>
+              <% }); %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    <% }); %>
+  </div>
+<% } %>
+
+<!-- ── Admin: Add New Item ─────────────────────────────────────────────────── -->
+<% if (currentUser && currentUser.role === 'ADMIN') { %>
+  <div class="mt-8 rounded-2xl bg-white shadow p-6">
+    <h2 class="text-base font-semibold mb-4">Add New Item</h2>
+    <form action="/inventory/add?_csrf=<%= encodeURIComponent(csrfToken) %>" method="POST" enctype="multipart/form-data"
+      class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+      <div>
+        <label class="text-xs font-medium text-slate-500 mb-1 block">Item Name *</label>
+        <input name="name" placeholder="e.g. 1.75mm PLA Filament" required
+          class="w-full border rounded-xl px-3 py-2 text-sm">
+      </div>
+
+      <div>
+        <label class="text-xs font-medium text-slate-500 mb-1 block">Quantity</label>
+        <input name="quantity" type="number" placeholder="0" min="0"
+          class="w-full border rounded-xl px-3 py-2 text-sm">
+      </div>
+
+      <div>
+        <label class="text-xs font-medium text-slate-500 mb-1 block">Location</label>
+        <input name="location" placeholder="e.g. Shelf A2"
+          class="w-full border rounded-xl px-3 py-2 text-sm">
+      </div>
+
+
+
+      <div>
+        <label class="text-xs font-medium text-slate-500 mb-1 block">Category</label>
+        <select name="categoryId" class="w-full border rounded-xl px-3 py-2 text-sm bg-white">
+          <option value="">— Select category —</option>
+          <% categories.forEach(function(c) { %>
+            <option value="<%= c.id %>"><%= c.name %></option>
+          <% }); %>
+        </select>
+      </div>
+
+      <div>
+        <label class="text-xs font-medium text-slate-500 mb-1 block">Department</label>
+        <select name="departmentId" class="w-full border rounded-xl px-3 py-2 text-sm bg-white">
+          <option value="">— Select department —</option>
+          <% departments.forEach(function(d) { %>
+            <option value="<%= d.id %>"><%= d.name %></option>
+          <% }); %>
+        </select>
+      </div>
+
+      <!-- Photo upload — camera-first on mobile -->
+      <div class="md:col-span-2 xl:col-span-3">
+        <label class="text-xs font-medium text-slate-500 mb-1 block">Item Photo</label>
+        <label class="flex items-center gap-3 cursor-pointer rounded-xl border-2 border-dashed border-slate-300 px-4 py-4 hover:border-blue-400 hover:bg-blue-50/30 transition group">
+          <!-- Preview area -->
+          <div id="addPreviewWrap" class="hidden w-16 h-16 rounded-xl overflow-hidden border border-slate-200 flex-shrink-0">
+            <img id="addPreview" src="" alt="Preview" class="w-full h-full object-cover" />
+          </div>
+          <div class="flex-1">
+            <div class="flex items-center gap-2 text-sm text-slate-500 group-hover:text-blue-600">
+              <span class="text-2xl">&#128247;</span>
+              <div>
+                <div class="font-medium" id="addPhotoLabel">Take a photo or choose from gallery</div>
+                <div class="text-xs text-slate-400">JPEG, PNG, WEBP — max 10 MB</div>
+              </div>
+            </div>
+          </div>
+          <input type="file" name="image" accept="image/*" capture="environment" class="hidden"
+            id="addPhotoInput"
+            onchange="previewAddPhoto(this)" />
+        </label>
+      </div>
+
+      <div class="md:col-span-2 xl:col-span-3">
+        <label class="text-xs font-medium text-slate-500 mb-1 block">Description</label>
+        <textarea name="description" placeholder="Optional notes about this item…" rows="2"
+          class="w-full border rounded-xl px-3 py-2 text-sm"></textarea>
+      </div>
+
+      <div class="md:col-span-2 xl:col-span-3">
+        <button type="submit"
+          class="bg-blue-600 text-white px-6 py-2.5 rounded-xl font-semibold text-sm hover:bg-blue-700 transition">
+          + Add Item
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <!-- ── Admin: Manage Categories & Departments ────────────────────────────── -->
+  <div id="manage" class="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+
+    <!-- Item Categories -->
+    <div class="rounded-2xl bg-white shadow p-6">
+      <h2 class="text-base font-semibold mb-4">Item Type Categories</h2>
+      <ul class="space-y-2 mb-4">
+        <% categories.forEach(function(c) { %>
+          <li class="flex items-center justify-between rounded-xl border border-slate-100 px-3 py-2">
+            <span class="text-sm text-slate-800"><%= c.name %></span>
+            <form action="/inventory/categories/<%= c.id %>/delete" method="POST" class="inline">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+              <button type="submit" class="text-xs text-red-400 hover:text-red-600"
+                onclick="return confirm('Remove category? Items using it won\\'t be deleted.')">Remove</button>
+            </form>
+          </li>
+        <% }); %>
+      </ul>
+      <form action="/inventory/categories/add" method="POST" class="flex gap-2">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <input name="name" placeholder="New category name…" required class="flex-1 border rounded-xl px-3 py-2 text-sm">
+        <button type="submit" class="bg-slate-800 text-white px-4 py-2 rounded-xl text-sm hover:bg-black transition">Add</button>
+      </form>
+    </div>
+
+    <!-- Departments -->
+    <div class="rounded-2xl bg-white shadow p-6">
+      <h2 class="text-base font-semibold mb-4">Workshop Departments</h2>
+      <ul class="space-y-2 mb-4">
+        <% departments.forEach(function(d) { %>
+          <li class="flex items-center justify-between rounded-xl border border-slate-100 px-3 py-2">
+            <div class="flex items-center gap-2">
+              <span class="h-2.5 w-2.5 rounded-full bg-blue-400 flex-shrink-0"></span>
+              <span class="text-sm text-slate-800"><%= d.name %></span>
+            </div>
+            <form action="/inventory/departments/<%= d.id %>/delete" method="POST" class="inline">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+              <button type="submit" class="text-xs text-red-400 hover:text-red-600"
+                onclick="return confirm('Remove department? Items using it won\\'t be deleted.')">Remove</button>
+            </form>
+          </li>
+        <% }); %>
+      </ul>
+      <form action="/inventory/departments/add" method="POST" class="flex gap-2">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <input name="name" placeholder="New department name…" required class="flex-1 border rounded-xl px-3 py-2 text-sm">
+        <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded-xl text-sm hover:bg-blue-700 transition">Add</button>
+      </form>
+    </div>
+  </div>
+<% } %>
+
+<!-- ── Scripts ─────────────────────────────────────────────────────────────── -->
+<script>
+  // Toggle inline edit row
+  function toggleEdit(id) {
+    const row = document.getElementById('edit-' + id);
+    if (row) row.classList.toggle('hidden');
+  }
+
+  // Lightbox
+  function openLightbox(element) {
+    const src = element.getAttribute('data-image-path');
+    const alt = element.getAttribute('data-item-name');
+    const lb = document.getElementById('imgLightbox');
+    document.getElementById('imgLightboxSrc').src = src;
+    document.getElementById('imgLightboxSrc').alt = alt || '';
+    lb.classList.remove('hidden');
+    lb.classList.add('flex');
+  }
+  // Close lightbox on Escape
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+      const lb = document.getElementById('imgLightbox');
+      lb.classList.add('hidden');
+      lb.classList.remove('flex');
+    }
+  });
+
+  // Update file-input label when a file is chosen (inline edit)
+  function updateImgLabel(input, labelId) {
+    const label = document.getElementById(labelId);
+    if (label && input.files && input.files[0]) {
+      label.textContent = input.files[0].name;
+    }
+  }
+
+  // Live preview for the "Add new item" photo input
+  function previewAddPhoto(input) {
+    const preview = document.getElementById('addPreview');
+    const wrap    = document.getElementById('addPreviewWrap');
+    const label   = document.getElementById('addPhotoLabel');
+    if (input.files && input.files[0]) {
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        preview.src = e.target.result;
+        wrap.classList.remove('hidden');
+        if (label) label.textContent = input.files[0].name;
+      };
+      reader.readAsDataURL(input.files[0]);
+    }
+  }
+</script>
