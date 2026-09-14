@@ -494,55 +494,85 @@ function generateFabricationInvoicePdf(res, options) {
     }
   }
 
-  // Payment instructions block
-  ensureSpace(doc, 75);
+  // Payment instructions block — stacked vertically and enlarged (was a
+  // cramped two-column layout at 8pt; the two sections now sit one above
+  // the other, each with a bigger bold header and larger body text).
+  const PAY_PAD_X = 16;
+  const PAY_PAD_TOP = 14;
+  const PAY_PAD_BOTTOM = 14;
+  const PAY_HEADER_SIZE = 12;
+  const PAY_BODY_SIZE = 10.5;
+  const PAY_HEADER_GAP = 8;   // space between a section header and its first line
+  const PAY_LINE_GAP = 17;    // vertical spacing between body lines
+  const PAY_DIVIDER_GAP = 10; // space above/below the divider between sections
+  const PAY_MOBILE_LINES = 2; // Recipient, Number
+  const PAY_BANK_LINES = 3;   // Account Name, Bank/Acct, Branch
+
+  const boxHeight =
+    PAY_PAD_TOP +
+    PAY_HEADER_SIZE + PAY_HEADER_GAP + (PAY_MOBILE_LINES * PAY_LINE_GAP) +
+    (PAY_DIVIDER_GAP * 2) +
+    PAY_HEADER_SIZE + PAY_HEADER_GAP + (PAY_BANK_LINES * PAY_LINE_GAP) +
+    PAY_PAD_BOTTOM;
+
+  ensureSpace(doc, boxHeight + 20);
   doc.moveDown(1);
   const payY = doc.y;
   const { left, right } = pageBounds(doc);
   const payWidth = right - left;
-  const boxHeight = 60;
-  
+  const textX = left + PAY_PAD_X;
+
   doc.save();
   doc.rect(left, payY, payWidth, boxHeight).fillColor('#f8fafc').fill(); // light slate background
   doc.rect(left, payY, payWidth, boxHeight).strokeColor(THEME.line).lineWidth(0.5).stroke();
-  
-  // vertical separator line between columns
-  const midX = left + payWidth / 2;
-  doc.moveTo(midX, payY + 5)
-     .lineTo(midX, payY + boxHeight - 5)
+  doc.restore();
+
+  let curY = payY + PAY_PAD_TOP;
+
+  // Section 1: Mobile Money
+  doc.fillColor(THEME.accent).font('Helvetica-Bold').fontSize(PAY_HEADER_SIZE)
+     .text('PAY VIA MOBILE MONEY', textX, curY);
+  curY += PAY_HEADER_SIZE + PAY_HEADER_GAP;
+
+  doc.fillColor(THEME.ink).font('Helvetica').fontSize(PAY_BODY_SIZE)
+     .text('Recipient: ', textX, curY, { continued: true })
+     .font('Helvetica-Bold').text('TRIPLE DIMENSION FABRICATION WORKS');
+  curY += PAY_LINE_GAP;
+
+  doc.font('Helvetica').fontSize(PAY_BODY_SIZE)
+     .text('Number: ', textX, curY, { continued: true })
+     .font('Helvetica-Bold').text('059 892 6121');
+  curY += PAY_LINE_GAP;
+
+  // Divider between the two sections
+  curY += PAY_DIVIDER_GAP;
+  doc.moveTo(left + PAY_PAD_X, curY)
+     .lineTo(right - PAY_PAD_X, curY)
      .strokeColor(THEME.line)
      .lineWidth(0.5)
      .stroke();
-  doc.restore();
+  curY += PAY_DIVIDER_GAP;
 
-  // Column 1: Mobile Money
-  doc.fillColor(THEME.accent).font('Helvetica-Bold').fontSize(8)
-     .text('PAY VIA MOBILE MONEY', left + 12, payY + 8);
-  
-  doc.fillColor(THEME.ink).font('Helvetica').fontSize(8)
-     .text('Recipient: ', left + 12, payY + 20, { continued: true })
-     .font('Helvetica-Bold').text('TRIPLE DIMENSION FABRICATION WORKS');
-  
-  doc.font('Helvetica').fontSize(8)
-     .text('Number: ', left + 12, payY + 32, { continued: true })
-     .font('Helvetica-Bold').text('059 892 6121');
+  // Section 2: Bank Transfer
+  doc.fillColor(THEME.accent).font('Helvetica-Bold').fontSize(PAY_HEADER_SIZE)
+     .text('PAY VIA BANK TRANSFER', textX, curY);
+  curY += PAY_HEADER_SIZE + PAY_HEADER_GAP;
 
-  // Column 2: Bank Transfer
-  doc.fillColor(THEME.accent).font('Helvetica-Bold').fontSize(8)
-     .text('PAY VIA BANK TRANSFER', midX + 12, payY + 8);
-  
-  doc.fillColor(THEME.ink).font('Helvetica').fontSize(8)
-     .text('Account Name: ', midX + 12, payY + 20, { continued: true })
+  doc.fillColor(THEME.ink).font('Helvetica').fontSize(PAY_BODY_SIZE)
+     .text('Account Name: ', textX, curY, { continued: true })
      .font('Helvetica-Bold').text('Triple Dimension Fabrication Works');
-  
-  doc.font('Helvetica').fontSize(8)
-     .text('Bank / Acct: ', midX + 12, payY + 32, { continued: true })
-     .font('Helvetica-Bold').text('UBA CEDI - 02015163803516');
+  curY += PAY_LINE_GAP;
 
-  doc.font('Helvetica').fontSize(8)
-     .text('Branch: ', midX + 12, payY + 44, { continued: true })
+  doc.font('Helvetica').fontSize(PAY_BODY_SIZE)
+     .text('Bank / Acct: ', textX, curY, { continued: true })
+     .font('Helvetica-Bold').text('UBA CEDI - 02015163803516');
+  curY += PAY_LINE_GAP;
+
+  doc.font('Helvetica').fontSize(PAY_BODY_SIZE)
+     .text('Branch: ', textX, curY, { continued: true })
      .font('Helvetica-Bold').text('KNUST Branch');
-     
+  curY += PAY_LINE_GAP;
+
   doc.y = payY + boxHeight + 8;
 
   doc.fillColor(THEME.muted).font('Helvetica').fontSize(8)

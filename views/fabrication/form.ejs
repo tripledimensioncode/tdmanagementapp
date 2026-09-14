@@ -136,7 +136,10 @@
 
   function createLineItemRow(label = '', qty = 1, cost = 0.0) {
     const row = document.createElement('div');
-    row.className = 'flex gap-2 items-center line-item-row';
+    // flex-wrap + w-full lets the row break onto a second line on narrow
+    // (phone) screens instead of overflowing off the right edge of the
+    // viewport. On sm+ screens it lays out as a single row as before.
+    row.className = 'flex flex-wrap gap-2 items-center line-item-row w-full';
 
     // Label input
     const labelInput = document.createElement('input');
@@ -145,7 +148,12 @@
     labelInput.value = label;
     labelInput.required = true;
     labelInput.placeholder = 'e.g. Cost of cutting';
-    labelInput.className = 'border rounded-xl px-3 py-2 text-sm flex-1';
+    // min-w-0 is required: flex items default to a min-width based on their
+    // content, which for a text input is wide enough (~150-200px) to force
+    // this row past a phone-width viewport even though it's flex-1.
+    // basis-full on mobile puts the label on its own line; sm:basis-auto
+    // restores the original single-row layout on larger screens.
+    labelInput.className = 'border rounded-xl px-3 py-2 text-sm flex-1 min-w-0 basis-full sm:basis-auto';
 
     // Qty input
     const qtyInput = document.createElement('input');
@@ -155,7 +163,7 @@
     qtyInput.min = '1';
     qtyInput.required = true;
     qtyInput.placeholder = 'Qty';
-    qtyInput.className = 'border rounded-xl px-2 py-2 text-sm w-16 text-right';
+    qtyInput.className = 'border rounded-xl px-2 py-2 text-sm w-16 text-right shrink-0';
 
     // Cost input
     const costInput = document.createElement('input');
@@ -166,12 +174,12 @@
     costInput.min = '0.00';
     costInput.required = true;
     costInput.placeholder = 'Cost (GHS)';
-    costInput.className = 'border rounded-xl px-2 py-2 text-sm w-24 text-right';
+    costInput.className = 'border rounded-xl px-2 py-2 text-sm w-20 sm:w-24 text-right shrink-0';
 
     // Remove button
     const removeBtn = document.createElement('button');
     removeBtn.type = 'button';
-    removeBtn.className = 'text-red-500 hover:text-red-700 px-2 text-xl font-bold transition duration-150';
+    removeBtn.className = 'text-red-500 hover:text-red-700 px-2 text-xl font-bold transition duration-150 shrink-0';
     removeBtn.innerHTML = '&times;';
     removeBtn.addEventListener('click', () => {
       row.remove();
