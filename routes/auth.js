@@ -4,6 +4,7 @@ const bcrypt = require('bcrypt');
 const fs = require('fs/promises');
 const path = require('path');
 const { isLoggedIn, isAdmin } = require('../middleware/auth');
+const { removeUploadedFile } = require('../utils/storage');
 
 const RESET_PHRASE = 'RESET EVERYTHING';
 
@@ -371,6 +372,34 @@ router.post('/system-reset', isLoggedIn, isAdmin, async (req, res) => {
   }
 
   try {
+    // Every stored-file reference that's about to be orphaned by the wipe
+    // below. Must be read BEFORE the delete — the rows (and their path
+    // columns) won't exist afterward. These paths can point at either a
+    // local dev-fallback file or a Vercel Blob object (see utils/storage.js
+    // persistUpload/persistBuffer) — removeUploadedFile() below handles
+    // both, so this cleanup works the same in local dev and in production.
+    const [
+      fabricationFiles,
+      fabricationsWithFile,
+      inventoryItemsWithImage,
+      subscribersWithIdCard,
+      subscriberActivitiesWithAttachment
+    ] = await Promise.all([
+      prisma.fabricationFile.findMany({ select: { path: true } }),
+      prisma.fabrication.findMany({ where: { filePath: { not: null } }, select: { filePath: true } }),
+      prisma.inventoryItem.findMany({ where: { imagePath: { not: null } }, select: { imagePath: true } }),
+      prisma.subscriber.findMany({ where: { idCardImagePath: { not: null } }, select: { idCardImagePath: true } }),
+      prisma.subscriberActivity.findMany({ where: { attachmentPath: { not: null } }, select: { attachmentPath: true } })
+    ]);
+
+    const filePathsToRemove = [
+      ...fabricationFiles.map((f) => f.path),
+      ...fabricationsWithFile.map((f) => f.filePath),
+      ...inventoryItemsWithImage.map((i) => i.imagePath),
+      ...subscribersWithIdCard.map((s) => s.idCardImagePath),
+      ...subscriberActivitiesWithAttachment.map((a) => a.attachmentPath)
+    ].filter(Boolean);
+
     await prisma.$transaction(async (tx) => {
       // Delete request & approvals
       await tx.systemResetApproval.deleteMany();
@@ -405,9 +434,30 @@ router.post('/system-reset', isLoggedIn, isAdmin, async (req, res) => {
     });
 
     await clearUploadFiles();
+
+    // Best-effort cleanup of the actual stored files/images referenced by
+    // everything just deleted — local disk files in dev, or Vercel Blob
+    // objects in production. This runs after the DB transaction has
+    // committed, so a failure here never rolls back the reset itself; it's
+    // logged and the reset still reports success, since the records are
+    // genuinely gone either way. Without this, a reset on Vercel would wipe
+    // the database but leave every uploaded file/image sitting in Blob
+    // storage forever, orphaned and still billed.
+    const fileCleanupResults = await Promise.allSettled(
+      filePathsToRemove.map((p) => removeUploadedFile(p))
+    );
+    const fileCleanupFailures = fileCleanupResults.filter((r) => r.status === 'rejected').length;
+    if (fileCleanupFailures > 0) {
+      console.error(`[POST /auth/system-reset] ${fileCleanupFailures}/${filePathsToRemove.length} stored file(s) failed to delete after reset.`);
+    }
+
     await clearSessionsExceptCurrent(req);
 
-    req.session.flash = { success: 'System reset complete. All records cleared; current admin account preserved.' };
+    req.session.flash = {
+      success: fileCleanupFailures > 0
+        ? `System reset complete. All records cleared; current admin account preserved. Note: ${fileCleanupFailures} stored file(s) could not be deleted and may need manual cleanup — check the server logs.`
+        : 'System reset complete. All records and their stored files cleared; current admin account preserved.'
+    };
     return res.redirect('/');
   } catch (err) {
     console.error('[POST /auth/system-reset Error]:', err);
