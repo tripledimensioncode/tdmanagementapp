@@ -518,9 +518,22 @@ router.get('/:id/receipts/:paymentId.pdf', isLoggedIn, async (req, res) => {
 });
 
 // Show single fabrication
+// NOTE: service management (add/edit/delete) now lives in its own
+// standalone router at routes/services.js, mounted at /services in app.js —
+// not nested here under /fabrication. It used to live at
+// GET/POST /fabrication/services, but that path was being silently
+// swallowed by the GET /:id route below (a wildcard that matches any single
+// path segment, including the literal word "services"), which caused every
+// request to it to hang until the platform's function timeout killed it.
+// Moving it to its own top-level path with no wildcard siblings removes
+// that whole class of bug rather than just reordering around it.
+
 router.get('/:id', isLoggedIn, async (req, res) => {
   const prisma = req.app.locals.prisma;
   const id = parseInt(req.params.id);
+  if (!Number.isInteger(id)) {
+    return res.status(404).send('Not found');
+  }
   const item = await prisma.fabrication.findUnique({
     where: { id },
     include: {
@@ -592,49 +605,6 @@ router.post('/:id/delete', isLoggedIn, isAdmin, async (req, res) => {
     console.error(err);
     req.session.flash = { error: 'Failed to delete fabrication record.' };
     res.redirect(`/fabrication/${id}`);
-  }
-});
-
-// Admin only: list & manage services
-router.get('/services', isLoggedIn, isAdmin, async (req, res) => {
-  const prisma = req.app.locals.prisma;
-  const services = await prisma.service.findMany({ orderBy: { label: 'asc' } });
-  res.render('fabrication/services', { services });
-});
-
-// Admin only: add new service
-router.post('/services/new', isLoggedIn, isAdmin, async (req, res) => {
-  const prisma = req.app.locals.prisma;
-  const { value, label } = req.body;
-
-  const normalizedValue = (value || '').toString().trim().toUpperCase().replace(/[^A-Z0-9_]/g, '_');
-  const normalizedLabel = (label || '').toString().trim();
-
-  if (!normalizedValue || !normalizedLabel) {
-    req.session.flash = { error: 'Both service code and label are required.' };
-    return res.redirect('/fabrication/services');
-  }
-
-  try {
-    const existing = await prisma.service.findUnique({ where: { value: normalizedValue } });
-    if (existing) {
-      req.session.flash = { error: `Service code ${normalizedValue} already exists.` };
-      return res.redirect('/fabrication/services');
-    }
-
-    await prisma.service.create({
-      data: {
-        value: normalizedValue,
-        label: normalizedLabel
-      }
-    });
-
-    req.session.flash = { success: `Service "${normalizedLabel}" added successfully.` };
-    res.redirect('/fabrication/services');
-  } catch (err) {
-    console.error(err);
-    req.session.flash = { error: 'Failed to add service.' };
-    res.redirect('/fabrication/services');
   }
 });
 

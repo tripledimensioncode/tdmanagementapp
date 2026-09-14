@@ -14,9 +14,47 @@ const csrf = require('./utils/csrf');
 const { securityHeaders } = require('./middleware/security');
 const { PrismaClient } = require('@prisma/client');
 
+/**
+ * Neon's pooled connection string (the one with "-pooler" in the hostname)
+ * goes through PgBouncer, which breaks the unbroken client<->Postgres TLS
+ * channel that SCRAM `channel_binding` depends on. If `channel_binding=require`
+ * ends up on a pooled DATABASE_URL (Neon's dashboard "Copy connection string"
+ * button appends it by default, and it's an easy thing to paste in without
+ * noticing), the connection handshake can hang indefinitely instead of
+ * failing cleanly — which is exactly what serverless requests do not have
+ * time for. Strip it defensively here so a bad paste into an env var doesn't
+ * take the whole app down with silent 60s timeouts.
+ *
+ * We also make sure a `connect_timeout` is always present so that if the
+ * initial TCP/TLS handshake to Postgres genuinely can't complete (wrong
+ * host, network issue, connection limit), Prisma fails fast with a clear
+ * error instead of hanging until the platform kills the function.
+ */
+function sanitizeDatabaseUrl(raw) {
+  if (!raw) return raw;
+  try {
+    const url = new URL(raw);
+    if (url.hostname.includes('-pooler') && url.searchParams.has('channel_binding')) {
+      console.warn('[db] Removing channel_binding=require from pooled DATABASE_URL — incompatible with PgBouncer and can hang connections.');
+      url.searchParams.delete('channel_binding');
+    }
+    if (!url.searchParams.has('connect_timeout')) {
+      url.searchParams.set('connect_timeout', '10');
+    }
+    return url.toString();
+  } catch (err) {
+    console.error('[db] Failed to parse DATABASE_URL, using it as-is:', err.message);
+    return raw;
+  }
+}
+
+const RESOLVED_DATABASE_URL = sanitizeDatabaseUrl(process.env.DATABASE_URL);
+
 // Global Prisma Client instance for connection pooling in serverless environments
 const globalForPrisma = global;
-const prisma = globalForPrisma.prisma || new PrismaClient();
+const prisma = globalForPrisma.prisma || new PrismaClient({
+  datasources: RESOLVED_DATABASE_URL ? { db: { url: RESOLVED_DATABASE_URL } } : undefined
+});
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
 
 let redisClient = null;
@@ -64,6 +102,26 @@ app.disable('x-powered-by');
 if (TRUST_PROXY) {
   app.set('trust proxy', 1);
 }
+
+// Defensive request timeout: if a request hasn't finished within this
+// window, respond with a clear, logged error instead of letting the
+// platform silently kill the function at its own hard limit (Vercel's
+// maxDuration, 60s per vercel.json here) with no error and no log line —
+// which is exactly what a stuck DB/Redis connection looked like before
+// this was added. This doesn't fix a stuck upstream connection, but it
+// makes it diagnosable instead of a mysterious blank 504.
+const REQUEST_TIMEOUT_MS = 25000;
+app.use((req, res, next) => {
+  const timer = setTimeout(() => {
+    if (!res.headersSent) {
+      console.error(`[timeout] ${req.method} ${req.originalUrl} did not complete within ${REQUEST_TIMEOUT_MS}ms — likely a stuck database or Redis connection.`);
+      res.status(503).send('The server took too long to respond (database or cache connection may be stuck). Please try again in a moment.');
+    }
+  }, REQUEST_TIMEOUT_MS);
+  res.on('finish', () => clearTimeout(timer));
+  res.on('close', () => clearTimeout(timer));
+  next();
+});
 
 // Apply Security Headers
 app.use(securityHeaders);
@@ -149,6 +207,7 @@ app.use('/inventory', require('./routes/inventory'));
 app.use('/assessments', require('./routes/assessments'));
 app.use('/work-updates', require('./routes/work-updates'));
 app.use('/fabrication', require('./routes/fabrication'));
+app.use('/services', require('./routes/services'));
 app.use('/funds', require('./routes/funds'));
 app.use('/subscribers', require('./routes/subscribers'));
 app.use('/customers', require('./routes/customers'));
