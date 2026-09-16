@@ -67,8 +67,11 @@ function clearSessionsExceptCurrent(req) {
 }
 
 // Login form
+// hideChrome: true tells the layout to skip the navbar/footer here — a
+// visitor who isn't logged in should see only the login form, not the
+// app's menus.
 router.get('/login', (req, res) => {
-  res.render('auth/login');
+  res.render('auth/login', { hideChrome: true });
 });
 
 // Login submit

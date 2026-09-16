@@ -1,6 +1,4 @@
-// Local server listener for TRIPLE DIMENSION intranet
-// Imports the Express app configuration from app.js
-
+// Local development server entry point (Vercel uses api/index.js -> app.js instead)
 require('dotenv').config();
 const app = require('./app');
 
@@ -10,7 +8,7 @@ const PORT = process.env.PORT || 3000;
 if (require.main === module) {
   const server = app.listen(PORT, HOST, () => {
     const displayHost = HOST === '0.0.0.0' ? 'localhost' : HOST;
-    console.log(`TRIPLE DIMENSION running on http://${displayHost}:${PORT}`);
+    console.log(`TRIPLE DIMENSION running at http://${displayHost}:${PORT}`);
   });
 
   server.on('error', (err) => {

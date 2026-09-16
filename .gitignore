@@ -43,3 +43,31 @@ Thumbs.db
 dist/
 build/
 backups/
+
+# --- Vending machine project (separate project, not part of this repo) ---
+# These folders/files belong to a different app that was accidentally being
+# worked on inside this same directory. Keeping them ignored here so `git
+# add -A` / `git add .` can never sweep them into this repo's history again.
+# If/when that project gets its own folder or repo, these lines can be
+# removed.
+/realtime/
+/routes/api/
+/routes/vendingWeb.js
+/services/
+/tests/
+/views/vending/
+/public/vending/
+/scripts/seedVending.js
+/middleware/customerSessionAuth.js
+/middleware/machineAuth.js
+/docs/ADMIN_GUIDE.md
+/docs/API_CONTRACT.md
+/docs/ARCHITECTURE.md
+/docs/CODEBASE_AUDIT.md
+/docs/CUSTOMER_FLOW.md
+/docs/DATABASE.md
+/docs/DEPLOYMENT.md
+/docs/MACHINE_PROVISIONING.md
+/docs/REALTIME_EVENTS.md
+/docs/SECURITY.md
+/docs/TROUBLESHOOTING.md
