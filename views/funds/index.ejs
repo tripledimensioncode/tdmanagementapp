@@ -37,7 +37,7 @@
 <div class="bg-white shadow rounded-2xl p-4 mb-6">
   <form id="filterForm" method="GET" action="/funds" class="space-y-3">
     <!-- Filter inputs row -->
-    <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+    <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-6">
       <!-- Search Query -->
       <div class="lg:col-span-1">
         <label class="block text-xs font-medium text-slate-500 mb-1">Search</label>
@@ -51,6 +51,16 @@
           <option value="">All Types</option>
           <option value="DEPOSIT"   <%= filters.type === 'DEPOSIT'   ? 'selected' : '' %>>Deposit</option>
           <option value="WITHDRAWAL" <%= filters.type === 'WITHDRAWAL' ? 'selected' : '' %>>Withdrawal</option>
+        </select>
+      </div>
+
+      <!-- Source -->
+      <div>
+        <label class="block text-xs font-medium text-slate-500 mb-1">Source</label>
+        <select name="source" class="w-full border rounded-xl px-3 py-2 text-sm bg-white">
+          <option value="">All Sources</option>
+          <option value="JOB"    <%= filters.source === 'JOB'    ? 'selected' : '' %>>Job payments</option>
+          <option value="MANUAL" <%= filters.source === 'MANUAL' ? 'selected' : '' %>>Manual entries</option>
         </select>
       </div>
 
@@ -120,6 +130,9 @@
                 <td class="p-2">
                   <div class="font-medium"><%= item.title %></div>
                   <div class="text-xs text-gray-500"><%= item.description || '-' %></div>
+                  <% if (item.fabricationPayment) { %>
+                    <a href="/fabrication/<%= item.fabricationPayment.fabricationId %>" class="mt-1 inline-block rounded bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700 hover:bg-blue-100">From job #<%= item.fabricationPayment.fabricationId %> &middot; Receipt #<%= item.fabricationPayment.id %></a>
+                  <% } %>
                 </td>
                 <td class="p-2 text-xs text-gray-700"><%= item.reference || '-' %></td>
                 <td class="p-2 text-xs text-gray-700"><%= item.createdBy ? item.createdBy.name : '-' %></td>

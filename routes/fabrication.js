@@ -488,10 +488,40 @@ router.post('/:id/payments', isLoggedIn, async (req, res) => {
     return res.redirect(`/fabrication/${id}`);
   }
 
-  const payment = await prisma.fabricationPayment.create({
-    data: { fabricationId: id, amount, method, reference, notes, receivedById: req.session.user.id }
-  });
-  req.session.flash = { success: `Payment of GHS ${amount.toFixed(2)} recorded. Receipt #${payment.id} is ready.` };
+  // The payment and its cashbook deposit (Funds) are written in one nested
+  // query, so Prisma saves both or neither — no interactive transaction and
+  // no 5s timeout to hit on a cold database.
+  const paidAt = new Date();
+  let payment;
+  try {
+    payment = await prisma.fabricationPayment.create({
+      data: {
+        fabricationId: id,
+        amount,
+        method,
+        reference,
+        notes,
+        paidAt,
+        receivedById: req.session.user.id,
+        fundTransaction: {
+          create: {
+            type: 'DEPOSIT',
+            amount,
+            title: `Job #${id} payment: ${job.name}`,
+            description: notes ? `${method} - ${notes}` : method,
+            reference,
+            date: paidAt,
+            createdById: req.session.user.id
+          }
+        }
+      }
+    });
+  } catch (err) {
+    console.error('[POST /fabrication/:id/payments Error]:', err);
+    req.session.flash = { error: 'Could not record the payment. Nothing was saved — please try again.' };
+    return res.redirect(`/fabrication/${id}`);
+  }
+  req.session.flash = { success: `Payment of GHS ${amount.toFixed(2)} recorded and added to Funds. Receipt #${payment.id} is ready.` };
   res.redirect(`/fabrication/${id}`);
 });
 

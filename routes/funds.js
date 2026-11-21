@@ -31,7 +31,7 @@ function calculateSummary(transactions, fundingRequests) {
 // Funds dashboard (with filtering)
 router.get('/', isLoggedIn, async (req, res) => {
   const prisma = req.app.locals.prisma;
-  const { q, type, from, to } = req.query;
+  const { q, type, source, from, to } = req.query;
 
   // 1. Fetch overall data for the summary stats (independent of filters)
   const [allTransactions, fundingRequests] = await Promise.all([
@@ -48,6 +48,8 @@ router.get('/', isLoggedIn, async (req, res) => {
   if (type === 'DEPOSIT' || type === 'WITHDRAWAL') {
     transactionWhere.type = type;
   }
+  if (source === 'JOB') transactionWhere.fabricationPaymentId = { not: null };
+  if (source === 'MANUAL') transactionWhere.fabricationPaymentId = null;
   if (q && q.trim()) {
     transactionWhere.OR = [
       { title: { contains: q.trim() } },
@@ -65,7 +67,10 @@ router.get('/', isLoggedIn, async (req, res) => {
   const transactions = await prisma.fundTransaction.findMany({
     where: transactionWhere,
     orderBy: [{ date: 'desc' }, { createdAt: 'desc' }],
-    include: { createdBy: true }
+    include: {
+      createdBy: true,
+      fabricationPayment: { select: { id: true, fabricationId: true } }
+    }
   });
 
   res.render('funds/index', {
@@ -78,6 +83,7 @@ router.get('/', isLoggedIn, async (req, res) => {
     filters: {
       q: q || '',
       type: type || '',
+      source: source || '',
       from: from || '',
       to: to || ''
     }
@@ -231,13 +237,15 @@ router.post('/requests/:id/review', isLoggedIn, isAdmin, async (req, res) => {
 // Cashbook Data Export (CSV or Excel)
 router.get('/export', isLoggedIn, async (req, res) => {
   const prisma = req.app.locals.prisma;
-  const { q, type, from, to, format } = req.query;
+  const { q, type, source, from, to, format } = req.query;
   const fmt = (format || 'csv').toLowerCase();
 
   const transactionWhere = {};
   if (type === 'DEPOSIT' || type === 'WITHDRAWAL') {
     transactionWhere.type = type;
   }
+  if (source === 'JOB') transactionWhere.fabricationPaymentId = { not: null };
+  if (source === 'MANUAL') transactionWhere.fabricationPaymentId = null;
   if (q && q.trim()) {
     transactionWhere.OR = [
       { title: { contains: q.trim() } },
@@ -254,7 +262,10 @@ router.get('/export', isLoggedIn, async (req, res) => {
   const transactions = await prisma.fundTransaction.findMany({
     where: transactionWhere,
     orderBy: [{ date: 'desc' }, { createdAt: 'desc' }],
-    include: { createdBy: true }
+    include: {
+      createdBy: true,
+      fabricationPayment: { select: { id: true, fabricationId: true } }
+    }
   });
 
   const rows = transactions.map(item => ({
@@ -264,6 +275,7 @@ router.get('/export', isLoggedIn, async (req, res) => {
     Title: item.title,
     Description: item.description || '',
     Reference: item.reference || '',
+    Source: item.fabricationPayment ? `Job #${item.fabricationPayment.fabricationId} (Receipt #${item.fabricationPayment.id})` : 'Manual',
     Amount: Number(item.amount).toFixed(2),
     RecordedBy: item.createdBy ? item.createdBy.name : 'Unknown',
     CreatedAt: item.createdAt ? item.createdAt.toISOString() : ''
