@@ -188,44 +188,68 @@ router.post('/register', isLoggedIn, isAdmin, async (req, res) => {
     return res.redirect('/auth/register');
   }
 
-  const existing = await prisma.user.findUnique({ where: { email: parsed.email } });
-  if (existing) {
-    req.session.flash = { error: 'Username already exists.' };
-    return res.redirect('/auth/register');
-  }
+  const creatorId = req.session.user.id;
+  const auditLog = {
+    createdBy: { connect: { id: creatorId } },
+    createdEmail: parsed.email,
+    createdRole: normalizedRole,
+    creatorIp: getRequestIp(req),
+    creatorUserAgent: req.get('user-agent') || null
+  };
 
-  const hashed = await bcrypt.hash(password, 10);
-  const creatorIp = getRequestIp(req);
-  const creatorUserAgent = req.get('user-agent') || null;
   try {
-    const created = await prisma.$transaction(async (tx) => {
-      const newUser = await tx.user.create({
+    const hashed = await bcrypt.hash(password, 10);
+    const existing = await prisma.user.findUnique({ where: { email: parsed.email } });
+
+    if (existing && !existing.isDeleted) {
+      req.session.flash = { error: `Username "${parsed.username}" already exists.` };
+      return res.redirect('/auth/register');
+    }
+
+    // User + audit log are written in ONE nested query, which Prisma runs
+    // atomically. This replaces an interactive $transaction, which has a 5s
+    // default timeout that a cold-starting Neon database on Vercel can
+    // exceed — the whole thing was then rolled back and nothing was saved.
+    let saved;
+    if (existing) {
+      // A deleted (deactivated) account still holds this username, and
+      // usernames are unique — reactivate it with the new password and role
+      // rather than refusing with "already exists" for an account the admin
+      // can no longer see in the user list.
+      saved = await prisma.user.update({
+        where: { id: existing.id },
+        data: {
+          password: hashed,
+          role: normalizedRole,
+          isDeleted: false,
+          accountCreationsReceived: { create: auditLog }
+        }
+      });
+    } else {
+      saved = await prisma.user.create({
         data: {
           name: parsed.username,
           email: parsed.email,
           password: hashed,
-          role: normalizedRole
+          role: normalizedRole,
+          accountCreationsReceived: { create: auditLog }
         }
       });
+    }
 
-      await tx.accountCreationLog.create({
-        data: {
-          createdUserId: newUser.id,
-          createdById: req.session.user.id,
-          createdEmail: newUser.email,
-          createdRole: newUser.role,
-          creatorIp,
-          creatorUserAgent
-        }
-      });
-
-      return newUser;
-    });
-    req.session.flash = { success: `User created: ${created.email} (audit log captured)` };
-    res.redirect('/');
+    req.session.flash = {
+      success: existing
+        ? `Account ${saved.email} was previously deleted and has been re-activated with the new password and role.`
+        : `User created: ${saved.email}. They can now log in.`
+    };
+    res.redirect('/auth/users');
   } catch (err) {
-    console.error(err);
-    req.session.flash = { error: 'Could not create user.' };
+    console.error('[POST /auth/register Error]:', err);
+    req.session.flash = {
+      error: err && err.code === 'P2002'
+        ? `Username "${parsed.username}" already exists.`
+        : 'Could not create user — the database did not respond in time or rejected the save. Please try again; if it keeps failing, check the server logs.'
+    };
     res.redirect('/auth/register');
   }
 });
