@@ -135,6 +135,21 @@ app.set('layout', 'layout');
 // Static files
 app.use('/public', express.static(path.join(__dirname, 'public')));
 
+// Installable web app (PWA). The service worker must be served from the
+// site root so its scope covers every page; both files are public and are
+// registered before the session middleware so they never create a session.
+app.get('/sw.js', (req, res) => {
+  res.set('Cache-Control', 'no-cache');
+  res.set('Service-Worker-Allowed', '/');
+  res.type('application/javascript');
+  res.sendFile(path.join(__dirname, 'public', 'sw.js'));
+});
+app.get('/manifest.webmanifest', (req, res) => {
+  res.set('Cache-Control', 'no-cache');
+  res.type('application/manifest+json');
+  res.sendFile(path.join(__dirname, 'public', 'manifest.webmanifest'));
+});
+
 // Body parsing
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(express.json({ limit: '10mb' }));

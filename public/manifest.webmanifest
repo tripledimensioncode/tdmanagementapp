@@ -1,0 +1,22 @@
+{
+  "id": "/",
+  "name": "TRIPLE DIMENSION",
+  "short_name": "TD",
+  "description": "TRIPLE DIMENSION staff app: daily log, attendance, team updates, fabrication and more.",
+  "start_url": "/?source=pwa",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#ffffff",
+  "theme_color": "#ffffff",
+  "icons": [
+    { "src": "/public/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/public/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/public/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Daily Log", "url": "/my-day", "icons": [{ "src": "/public/icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Attendance", "url": "/attendance", "icons": [{ "src": "/public/icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Team Updates", "url": "/work-updates", "icons": [{ "src": "/public/icons/icon-192.png", "sizes": "192x192" }] }
+  ]
+}
