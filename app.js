@@ -203,6 +203,7 @@ app.use(csrf());
 app.use((req, res, next) => {
   res.locals.csrfToken = req.csrfToken();
   res.locals.currentUser = req.session.user || null;
+  res.locals.currentPath = req.path;
   // res.locals.flash is set by the flash() middleware above, which also
   // clears it from the session. Re-reading req.session.flash here (as this
   // used to) always got undefined and replaced the message with {}, so no

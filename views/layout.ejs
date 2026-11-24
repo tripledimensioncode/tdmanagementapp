@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>TRIPLE DIMENSION</title>
     <link rel="icon" type="image/svg+xml" href="/public/images/favicon.svg" />
     <link rel="manifest" href="/manifest.webmanifest" />
@@ -27,6 +27,7 @@
     </main>
     <% if (!locals.hideChrome) { %>
       <%- include('partials/footer') %>
+      <%- include('partials/bottom-nav') %>
     <% } %>
     <script src="/public/js/app.js"></script>
   </body>
